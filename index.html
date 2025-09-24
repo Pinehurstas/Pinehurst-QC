@@ -4,318 +4,847 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pinehurst QC Inspector</title>
-    <meta name="description" content="Quality Control Inspection App for Pinehurst Apartment Services">
     <link rel="manifest" href="manifest.json">
-    <link rel="stylesheet" href="styles.css">
-    <meta name="theme-color" content="#2c5530">
-    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#2c3e50">
+    <link rel="icon" href="icon-192x192.png" type="image/png">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            min-height: 100vh;
+            background: white;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Auth Screen */
+        .auth-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 2rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .auth-box {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .auth-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .auth-header h1 {
+            color: #2c3e50;
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .auth-header p {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+
+        .auth-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .form-group label {
+            font-weight: 500;
+            color: #2c3e50;
+            font-size: 0.9rem;
+        }
+
+        .form-group input {
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .auth-button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .auth-button:hover {
+            background: #5a67d8;
+        }
+
+        .auth-button:disabled {
+            background: #cbd5e0;
+            cursor: not-allowed;
+        }
+
+        .auth-toggle {
+            text-align: center;
+            margin-top: 1rem;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+
+        .auth-toggle button {
+            background: none;
+            border: none;
+            color: #667eea;
+            text-decoration: underline;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .error-message {
+            background: #fee;
+            color: #c53030;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #feb2b2;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Header */
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 1rem;
+            text-align: center;
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .sync-status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+            opacity: 0.9;
+        }
+
+        .sync-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #27ae60;
+        }
+
+        .sync-indicator.syncing {
+            background: #f39c12;
+            animation: pulse 1s infinite;
+        }
+
+        .sync-indicator.offline {
+            background: #e74c3c;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .settings-btn {
+            position: absolute;
+            right: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 0.5rem;
+        }
+
+        /* Navigation */
+        .nav-container {
+            background: #34495e;
+            padding: 0;
+        }
+
+        .nav-tabs {
+            display: flex;
+            list-style: none;
+        }
+
+        .nav-tab {
+            flex: 1;
+            text-align: center;
+        }
+
+        .nav-tab button {
+            width: 100%;
+            padding: 1rem 0.5rem;
+            background: none;
+            border: none;
+            color: #bdc3c7;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+        }
+
+        .nav-tab button.active {
+            color: white;
+            border-bottom-color: #3498db;
+            background: rgba(52, 152, 219, 0.1);
+        }
+
+        /* Content */
+        .content {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .section {
+            display: none;
+            padding: 1.5rem;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        /* Forms */
+        .form-section {
+            margin-bottom: 2rem;
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 10px;
+            border-left: 4px solid #3498db;
+        }
+
+        .form-section h3 {
+            color: #2c3e50;
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            align-items: center;
+        }
+
+        .form-row label {
+            min-width: 120px;
+            font-weight: 500;
+            color: #34495e;
+            font-size: 0.9rem;
+        }
+
+        .form-row input,
+        .form-row select,
+        .form-row textarea {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+
+        .form-row textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-top: 0.5rem;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            min-width: calc(50% - 0.5rem);
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            flex: none;
+            width: auto;
+        }
+
+        /* Buttons */
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+            padding-top: 1rem;
+            border-top: 1px solid #eee;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2980b9;
+        }
+
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #219a52;
+        }
+
+        .btn-secondary {
+            background: #95a5a6;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #7f8c8d;
+        }
+
+        /* History */
+        .history-container {
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        .inspection-card {
+            background: white;
+            border: 1px solid #e0e6ed;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .inspection-header {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-bottom: 1px solid #e0e6ed;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .inspection-header:hover {
+            background: #e9ecef;
+        }
+
+        .inspection-title {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 0.95rem;
+        }
+
+        .inspection-date {
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+
+        .inspection-details {
+            display: none;
+            padding: 1rem;
+            background: white;
+        }
+
+        .inspection-details.show {
+            display: block;
+        }
+
+        .detail-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .detail-section h4 {
+            color: #2c3e50;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+        }
+
+        .detail-label {
+            font-weight: 500;
+            color: #495057;
+        }
+
+        .detail-value {
+            color: #6c757d;
+        }
+
+        .issues-list {
+            list-style: none;
+            margin-top: 0.5rem;
+        }
+
+        .issues-list li {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 4px;
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+            color: #856404;
+        }
+
+        .no-history {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: #6c757d;
+        }
+
+        .no-history .icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        /* Settings Screen */
+        .settings-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            z-index: 1000;
+        }
+
+        .settings-overlay.show {
+            display: block;
+        }
+
+        .settings-panel {
+            position: fixed;
+            top: 0;
+            right: -100%;
+            width: 100%;
+            max-width: 400px;
+            height: 100%;
+            background: white;
+            transition: right 0.3s ease;
+            overflow-y: auto;
+        }
+
+        .settings-overlay.show .settings-panel {
+            right: 0;
+        }
+
+        .settings-header {
+            background: #2c3e50;
+            color: white;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .close-settings {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .settings-content {
+            padding: 1.5rem;
+        }
+
+        .settings-section {
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #eee;
+        }
+
+        .settings-section:last-child {
+            border-bottom: none;
+        }
+
+        .settings-section h3 {
+            color: #2c3e50;
+            margin-bottom: 1rem;
+            font-size: 1rem;
+        }
+
+        .user-info {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .user-email {
+            font-weight: 500;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+
+        .user-status {
+            font-size: 0.8rem;
+            color: #27ae60;
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+
+        /* Loading States */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 200px;
+            color: #7f8c8d;
+        }
+
+        /* Responsive */
+        @media (max-width: 480px) {
+            .container {
+                max-width: 100%;
+            }
+
+            .auth-container {
+                padding: 1rem;
+            }
+
+            .form-row {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 0.5rem;
+            }
+
+            .form-row label {
+                min-width: auto;
+            }
+
+            .checkbox-item {
+                min-width: 100%;
+            }
+
+            .detail-grid {
+                grid-template-columns: 1fr;
+                gap: 0.25rem;
+            }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
 </head>
 <body>
-    <div id="app">
-        <!-- Loading Screen -->
-        <div id="loading-screen" class="screen">
-            <div class="loading-content">
-                <div class="logo">
-                    <h1>Pinehurst</h1>
-                    <p>Apartment Services</p>
+    <!-- Auth Screen -->
+    <div id="authScreen" class="auth-container">
+        <div class="auth-box">
+            <div class="auth-header">
+                <h1>Pinehurst QC Inspector</h1>
+                <p>Professional Quality Control System</p>
+            </div>
+
+            <div id="authError" class="error-message hidden"></div>
+
+            <form id="authForm" class="auth-form">
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" required>
                 </div>
-                <div class="loading-spinner"></div>
-                <p>Loading Quality Control Inspector...</p>
+                
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" required>
+                </div>
+
+                <button type="submit" class="auth-button" id="authSubmit">
+                    <span id="authButtonText">Sign In</span>
+                </button>
+            </form>
+
+            <div class="auth-toggle">
+                <span id="authToggleText">Don't have an account?</span>
+                <button type="button" id="authToggleBtn">Sign Up</button>
             </div>
         </div>
+    </div>
 
-        <!-- Main Navigation -->
-        <nav id="main-nav" class="nav-hidden">
-            <div class="nav-header">
-                <h1>Pinehurst QC</h1>
-                <button id="menu-toggle" class="menu-btn">☰</button>
+    <!-- Main App -->
+    <div id="mainApp" class="container hidden">
+        <header class="header">
+            <h1>Pinehurst QC Inspector</h1>
+            <div class="sync-status">
+                <div class="sync-indicator" id="syncIndicator"></div>
+                <span id="syncStatus">Connected</span>
             </div>
-            <div class="nav-menu">
-                <button class="nav-btn active" data-screen="dashboard">Dashboard</button>
-                <button class="nav-btn" data-screen="new-inspection">New Inspection</button>
-                <button class="nav-btn" data-screen="inspections">Inspections</button>
-                <button class="nav-btn" data-screen="reports">Reports</button>
-                <button class="nav-btn" data-screen="settings">Settings</button>
-            </div>
+            <button class="settings-btn" onclick="showSettings()">⚙️</button>
+        </header>
+
+        <nav class="nav-container">
+            <ul class="nav-tabs">
+                <li class="nav-tab">
+                    <button onclick="showSection('inspection')" id="inspectionTab" class="active">New Inspection</button>
+                </li>
+                <li class="nav-tab">
+                    <button onclick="showSection('history')" id="historyTab">History</button>
+                </li>
+            </ul>
         </nav>
 
-        <!-- Dashboard Screen -->
-        <div id="dashboard" class="screen active">
-            <div class="screen-content">
-                <div class="header">
-                    <h2>Dashboard</h2>
-                    <div class="sync-status" id="sync-status">
-                        <span class="sync-indicator offline"></span>
-                        <span>Offline</span>
+        <main class="content">
+            <!-- Inspection Section -->
+            <section id="inspectionSection" class="section active">
+                <form id="inspectionForm">
+                    <div class="form-section">
+                        <h3>🏢 Property Information</h3>
+                        <div class="form-row">
+                            <label for="propertyAddress">Address:</label>
+                            <input type="text" id="propertyAddress" required>
+                        </div>
+                        <div class="form-row">
+                            <label for="unitNumber">Unit Number:</label>
+                            <input type="text" id="unitNumber">
+                        </div>
+                        <div class="form-row">
+                            <label for="inspectionType">Type:</label>
+                            <select id="inspectionType" required>
+                                <option value="">Select Type</option>
+                                <option value="move-in">Move-in Inspection</option>
+                                <option value="move-out">Move-out Inspection</option>
+                                <option value="periodic">Periodic Inspection</option>
+                                <option value="maintenance">Post-Maintenance</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3>👤 Inspector Details</h3>
+                        <div class="form-row">
+                            <label for="inspectorName">Inspector:</label>
+                            <input type="text" id="inspectorName" required>
+                        </div>
+                        <div class="form-row">
+                            <label for="inspectionDate">Date:</label>
+                            <input type="date" id="inspectionDate" required>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3>🏠 Room Conditions</h3>
+                        <div class="checkbox-group" id="roomConditions">
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="living_room" name="rooms" value="living_room">
+                                <label for="living_room">Living Room</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="kitchen" name="rooms" value="kitchen">
+                                <label for="kitchen">Kitchen</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="bedroom1" name="rooms" value="bedroom1">
+                                <label for="bedroom1">Bedroom 1</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="bedroom2" name="rooms" value="bedroom2">
+                                <label for="bedroom2">Bedroom 2</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="bathroom" name="rooms" value="bathroom">
+                                <label for="bathroom">Bathroom</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="laundry" name="rooms" value="laundry">
+                                <label for="laundry">Laundry</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3>⚠️ Issues Found</h3>
+                        <div class="checkbox-group" id="issuesFound">
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="wall_damage" name="issues" value="wall_damage">
+                                <label for="wall_damage">Wall Damage</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="carpet_stains" name="issues" value="carpet_stains">
+                                <label for="carpet_stains">Carpet Stains</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="appliance_issues" name="issues" value="appliance_issues">
+                                <label for="appliance_issues">Appliance Issues</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="plumbing_problems" name="issues" value="plumbing_problems">
+                                <label for="plumbing_problems">Plumbing Problems</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="electrical_issues" name="issues" value="electrical_issues">
+                                <label for="electrical_issues">Electrical Issues</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="cleaning_needed" name="issues" value="cleaning_needed">
+                                <label for="cleaning_needed">Cleaning Needed</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3>📝 Additional Notes</h3>
+                        <div class="form-row">
+                            <textarea id="additionalNotes" placeholder="Enter any additional observations, repair recommendations, or special notes..."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="button-group">
+                        <button type="button" class="btn btn-secondary" onclick="clearForm()">Clear Form</button>
+                        <button type="submit" class="btn btn-primary">Save Inspection</button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- History Section -->
+            <section id="historySection" class="section">
+                <div id="historyContainer" class="history-container">
+                    <div class="loading" id="historyLoading">
+                        <div class="loading-spinner"></div>
+                        Loading inspection history...
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Settings Overlay -->
+    <div id="settingsOverlay" class="settings-overlay">
+        <div class="settings-panel">
+            <div class="settings-header">
+                <h2>Settings</h2>
+                <button class="close-settings" onclick="hideSettings()">✕</button>
+            </div>
+            
+            <div class="settings-content">
+                <div class="settings-section">
+                    <h3>Account Information</h3>
+                    <div class="user-info">
+                        <div class="user-email" id="userEmail">Loading...</div>
+                        <div class="user-status">✓ Account Active</div>
                     </div>
                 </div>
                 
-                <div class="dashboard-stats">
-                    <div class="stat-card">
-                        <h3 id="total-inspections">0</h3>
-                        <p>Total Inspections</p>
-                    </div>
-                    <div class="stat-card">
-                        <h3 id="pending-sync">0</h3>
-                        <p>Pending Sync</p>
-                    </div>
-                    <div class="stat-card">
-                        <h3 id="avg-score">0%</h3>
-                        <p>Avg. Pass Rate</p>
-                    </div>
-                </div>
-
-                <div class="recent-inspections">
-                    <h3>Recent Inspections</h3>
-                    <div id="recent-list" class="inspection-list">
-                        <!-- Recent inspections will be populated here -->
-                    </div>
-                </div>
-
-                <div class="quick-actions">
-                    <button class="btn btn-primary" data-screen="new-inspection">
-                        <span class="icon">+</span>
-                        Start New Inspection
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- New Inspection Screen -->
-        <div id="new-inspection" class="screen">
-            <div class="screen-content">
-                <div class="header">
-                    <button class="back-btn" data-screen="dashboard">‹</button>
-                    <h2>New Inspection</h2>
-                </div>
-
-                <form id="inspection-form" class="inspection-form">
-                    <div class="form-group">
-                        <label for="property-select">Property</label>
-                        <select id="property-select" required>
-                            <option value="">Select Property</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="inspector-name">Inspector Name</label>
-                        <input type="text" id="inspector-name" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="inspection-date">Date & Time</label>
-                        <input type="datetime-local" id="inspection-date" required>
-                    </div>
-
-                    <button type="button" id="start-inspection" class="btn btn-primary btn-full">
-                        Start Inspection
-                    </button>
-                </form>
-            </div>
-        </div>
-
-        <!-- Inspection Detail Screen -->
-        <div id="inspection-detail" class="screen">
-            <div class="screen-content">
-                <div class="header">
-                    <button class="back-btn" data-screen="new-inspection">‹</button>
-                    <h2 id="inspection-title">Inspection</h2>
-                    <div class="progress-bar">
-                        <div id="progress-fill" class="progress-fill"></div>
-                    </div>
-                </div>
-
-                <div id="inspection-sections" class="inspection-sections">
-                    <!-- Inspection sections will be populated here -->
-                </div>
-
-                <div class="inspection-actions">
-                    <button id="add-photo" class="btn btn-secondary">
-                        <span class="icon">📷</span>
-                        Add Photo
-                    </button>
-                    <button id="add-note" class="btn btn-secondary">
-                        <span class="icon">📝</span>
-                        Add Note
-                    </button>
-                </div>
-
-                <div class="form-group">
-                    <label for="overall-rating">Overall Cleanliness Rating</label>
-                    <select id="overall-rating">
-                        <option value="">Select Rating</option>
-                        <option value="excellent">Excellent</option>
-                        <option value="good">Good</option>
-                        <option value="neutral">Neutral</option>
-                        <option value="bad">Bad</option>
-                        <option value="extremely-bad">Extremely Bad</option>
-                    </select>
-                </div>
-
-                <button id="complete-inspection" class="btn btn-primary btn-full">
-                    Complete Inspection
-                </button>
-            </div>
-        </div>
-
-        <!-- Inspections List Screen -->
-        <div id="inspections" class="screen">
-            <div class="screen-content">
-                <div class="header">
-                    <h2>Inspections</h2>
-                    <div class="header-actions">
-                        <button id="filter-btn" class="btn btn-secondary">Filter</button>
-                        <button id="export-btn" class="btn btn-secondary">Export</button>
-                    </div>
-                </div>
-
-                <div class="search-bar">
-                    <input type="text" id="inspection-search" placeholder="Search inspections...">
-                </div>
-
-                <div id="inspections-list" class="inspection-list">
-                    <!-- Inspections will be populated here -->
-                </div>
-            </div>
-        </div>
-
-        <!-- Reports Screen -->
-        <div id="reports" class="screen">
-            <div class="screen-content">
-                <div class="header">
-                    <h2>Reports & Analytics</h2>
-                </div>
-
-                <div class="report-filters">
-                    <div class="form-group">
-                        <label for="report-property">Property</label>
-                        <select id="report-property">
-                            <option value="">All Properties</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="report-date-from">From Date</label>
-                        <input type="date" id="report-date-from">
-                    </div>
-                    <div class="form-group">
-                        <label for="report-date-to">To Date</label>
-                        <input type="date" id="report-date-to">
-                    </div>
-                    <button id="generate-report" class="btn btn-primary">Generate Report</button>
-                </div>
-
-                <div id="report-content" class="report-content">
-                    <!-- Report content will be populated here -->
-                </div>
-
-                <div class="export-options">
-                    <button id="export-pdf" class="btn btn-secondary">Export PDF</button>
-                    <button id="export-excel" class="btn btn-secondary">Export Excel</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Settings Screen -->
-        <div id="settings" class="screen">
-            <div class="screen-content">
-                <div class="header">
-                    <h2>Settings</h2>
-                </div>
-
-                <div class="settings-groups">
-                    <div class="settings-group">
-                        <h3>Sync Settings</h3>
-                        <div class="setting-item">
-                            <label>Auto Sync</label>
-                            <input type="checkbox" id="auto-sync" checked>
-                        </div>
-                        <div class="setting-item">
-                            <label>Server URL</label>
-                            <input type="url" id="server-url" placeholder="https://api.example.com">
-                        </div>
-                        <button id="manual-sync" class="btn btn-secondary">Sync Now</button>
-                    </div>
-
-                    <div class="settings-group">
-                        <h3>Notifications</h3>
-                        <div class="setting-item">
-                            <label>Alert on 5+ Misses</label>
-                            <input type="checkbox" id="alert-5-misses" checked>
-                        </div>
-                        <div class="setting-item">
-                            <label>Alert on 10+ Misses</label>
-                            <input type="checkbox" id="alert-10-misses" checked>
-                        </div>
-                        <div class="setting-item">
-                            <label>Alert on Repeated Misses</label>
-                            <input type="checkbox" id="alert-repeated-misses" checked>
+                <div class="settings-section">
+                    <h3>Data Synchronization</h3>
+                    <div class="user-info">
+                        <div>Sync Status: <span id="settingsSyncStatus">Connected</span></div>
+                        <div style="font-size: 0.8rem; color: #7f8c8d; margin-top: 0.5rem;">
+                            Your inspection data automatically syncs across all your devices.
                         </div>
                     </div>
-
-                    <div class="settings-group">
-                        <h3>Data Management</h3>
-                        <button id="clear-data" class="btn btn-danger">Clear All Data</button>
-                        <button id="backup-data" class="btn btn-secondary">Backup Data</button>
-                    </div>
+                </div>
+                
+                <div class="settings-section">
+                    <h3>Account Actions</h3>
+                    <button class="btn btn-danger" onclick="signOut()">Sign Out</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Photo Modal -->
-    <div id="photo-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Add Photo</h3>
-                <button class="close-btn">&times;</button>
-            </div>
-            <div class="modal-body">
-                <input type="file" id="photo-input" accept="image/*" capture="environment">
-                <div id="photo-preview"></div>
-                <textarea id="photo-caption" placeholder="Add caption..."></textarea>
-            </div>
-            <div class="modal-actions">
-                <button id="save-photo" class="btn btn-primary">Save Photo</button>
-                <button class="btn btn-secondary modal-close">Cancel</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Note Modal -->
-    <div id="note-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Add Note</h3>
-                <button class="close-btn">&times;</button>
-            </div>
-            <div class="modal-body">
-                <textarea id="note-input" placeholder="Enter your note..."></textarea>
-            </div>
-            <div class="modal-actions">
-                <button id="save-note" class="btn btn-primary">Save Note</button>
-                <button class="btn btn-secondary modal-close">Cancel</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Alert Modal -->
-    <div id="alert-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 id="alert-title">Alert</h3>
-                <button class="close-btn">&times;</button>
-            </div>
-            <div class="modal-body">
-                <p id="alert-message"></p>
-            </div>
-            <div class="modal-actions">
-                <button class="btn btn-primary modal-close">OK</button>
-            </div>
-        </div>
-    </div>
-
-    <script src="app.js"></script>
+    <!-- Firebase SDK -->
+    <script type="module" src="firebase-config.js"></script>
+    <script type="module" src="auth.js"></script>
+    <script type="module" src="cloud-sync.js"></script>
+    <script type="module" src="app.js"></script>
 </body>
 </html>
