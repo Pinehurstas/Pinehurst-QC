@@ -1,4 +1,4 @@
-// Pinehurst Quality Control PWA - IMPROVED VERSION
+// Pinehurst Quality Control PWA - FIXED VERSION FOR DROPDOWN STAYING OPEN
 class PinehurstQC {
     constructor() {
         this.currentInspection = null;
@@ -323,7 +323,7 @@ class PinehurstQC {
             sectionDiv.innerHTML = `
                 <div class="section-header" data-category="${categoryId}">
                     <h3>${category.title} (${checkedItems}/${totalItems})</h3>
-                    <span class="section-toggle">▼</span>
+                    <span class="section-toggle">▲</span>
                 </div>
                 <div class="section-content active" id="content-${categoryId}">
                     ${this.renderChecklistItems(categoryId, category.items)}
@@ -333,30 +333,33 @@ class PinehurstQC {
             sectionsContainer.appendChild(sectionDiv);
         });
 
-        // IMPROVED: Add section toggle functionality - only collapses when clicking header
+        // FIXED: More robust section toggle - prevent any bubbling from child elements
         document.querySelectorAll('.section-header').forEach(header => {
             header.addEventListener('click', (e) => {
-                // Only toggle if clicking the header itself or the toggle arrow, not child elements
-                if (e.target === header || e.target.classList.contains('section-toggle') || e.target.tagName === 'H3') {
-                    const categoryId = e.currentTarget.getAttribute('data-category');
+                // Debug logging
+                console.log('Header clicked:', e.target.className, e.target.tagName);
+                
+                // Only allow toggle if clicking directly on header, h3, or toggle arrow
+                const isValidClick = (
+                    e.target === header ||
+                    e.target.tagName === 'H3' ||
+                    e.target.classList.contains('section-toggle')
+                );
+                
+                if (isValidClick) {
+                    const categoryId = header.getAttribute('data-category');
                     const content = document.getElementById(`content-${categoryId}`);
-                    const toggle = e.currentTarget.querySelector('.section-toggle');
+                    const toggle = header.querySelector('.section-toggle');
                     
                     content.classList.toggle('active');
                     toggle.textContent = content.classList.contains('active') ? '▲' : '▼';
+                } else {
+                    // Prevent any other clicks from propagating
+                    e.stopPropagation();
+                    e.preventDefault();
                 }
             });
         });
-
-        // IMPROVED: Auto-expand all sections and update toggles
-        setTimeout(() => {
-            document.querySelectorAll('.section-content').forEach(content => {
-                content.classList.add('active');
-            });
-            document.querySelectorAll('.section-toggle').forEach(toggle => {
-                toggle.textContent = '▲';
-            });
-        }, 100);
 
         this.updateProgress();
     }
@@ -368,14 +371,15 @@ class PinehurstQC {
             const isMissed = checklistItem.status === 'missed';
             
             return `
-                <div class="checklist-item">
+                <div class="checklist-item" onclick="event.stopPropagation();">
                     <div class="item-text">${item}</div>
                     <div class="item-controls">
                         <div class="toggle-switch ${isDone ? 'done' : ''}" 
                              data-category="${categoryId}" 
-                             data-index="${index}">
+                             data-index="${index}"
+                             onclick="event.stopPropagation();">
                         </div>
-                        <div class="toggle-label ${isDone ? 'done' : (isMissed ? 'missed' : '')}">
+                        <div class="toggle-label ${isDone ? 'done' : (isMissed ? 'missed' : '')}" onclick="event.stopPropagation();">
                             ${isDone ? 'Done' : (isMissed ? 'Missed' : 'Pending')}
                         </div>
                     </div>
@@ -413,20 +417,44 @@ class PinehurstQC {
         });
     }
 
-    // IMPROVED: Event delegation for dynamically created toggle switches with event stopping
+    // FIXED: More aggressive event handling to prevent bubbling
     setupDynamicEventListeners() {
+        // Use capture phase to catch events before they bubble
         document.addEventListener('click', (e) => {
+            console.log('Click detected:', e.target.className, e.target.tagName);
+            
             if (e.target.classList.contains('toggle-switch')) {
-                // Prevent event bubbling to parent elements (prevents section from collapsing)
-                e.stopPropagation();
+                console.log('Toggle switch clicked!');
+                // Stop all propagation immediately
+                e.stopImmediatePropagation();
+                e.preventDefault();
+                
                 const categoryId = e.target.getAttribute('data-category');
                 const index = parseInt(e.target.getAttribute('data-index'));
                 this.toggleChecklistItem(categoryId, index);
+                return false;
             }
-        });
+            
+            // Also catch clicks on the item controls area
+            if (e.target.classList.contains('item-controls') || 
+                e.target.closest('.item-controls')) {
+                e.stopPropagation();
+                e.preventDefault();
+                return false;
+            }
+            
+            // Catch clicks on checklist items
+            if (e.target.classList.contains('checklist-item') || 
+                e.target.closest('.checklist-item')) {
+                e.stopPropagation();
+                return false;
+            }
+        }, true); // Use capture phase
     }
 
     toggleChecklistItem(categoryId, index) {
+        console.log('Toggling item:', categoryId, index);
+        
         if (!this.currentInspection) return;
 
         const item = this.currentInspection.checklist[categoryId][index];
@@ -444,16 +472,18 @@ class PinehurstQC {
                 break;
         }
 
+        console.log('New status:', item.status);
+
         this.calculateMissCount();
         this.checkTriggers();
         
-        // IMPROVED: Update only the specific toggle instead of re-rendering entire section
+        // Update only the specific toggle instead of re-rendering entire section
         this.updateSingleToggle(categoryId, index);
         this.updateProgress();
         this.saveToStorage();
     }
 
-    // NEW: Update just one toggle without re-rendering everything
+    // Update just one toggle without re-rendering everything
     updateSingleToggle(categoryId, index) {
         const item = this.currentInspection.checklist[categoryId][index];
         const toggleSwitch = document.querySelector(`[data-category="${categoryId}"][data-index="${index}"]`);
