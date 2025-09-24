@@ -1,180 +1,18 @@
-import { AuthManager } from './auth.js';
-
 // Global variables
 let inspectionHistory = [];
-let authManager;
-let currentUser = null;
 
 // Initialize app when DOM is loaded
 document.addEventListener('DOMContentLoaded', initializeApp);
 
-async function initializeApp() {
-    console.log('Initializing app...');
-    
-    try {
-        // Initialize authentication
-        authManager = new AuthManager();
-        
-        // Set up auth event listeners
-        setupAuthEventListeners();
-        
-        // Listen for authentication state changes
-        authManager.onAuthStateChanged(async (user) => {
-            console.log('Auth state callback:', user ? 'User present' : 'No user');
-            if (user) {
-                currentUser = user;
-                showMainApp();
-                initializeMainApp();
-            } else {
-                currentUser = null;
-                showAuthScreen();
-            }
-        });
-        
-    } catch (error) {
-        console.error('Failed to initialize auth:', error);
-        // If auth fails, show the main app anyway (fallback)
-        showMainApp();
-        initializeMainApp();
-    }
-}
-
-function setupAuthEventListeners() {
-    // Only set up if auth elements exist
-    const authForm = document.getElementById('authForm');
-    const authToggleBtn = document.getElementById('authToggleBtn');
-    
-    if (authForm) {
-        authForm.addEventListener('submit', handleAuthSubmit);
-    }
-    if (authToggleBtn) {
-        authToggleBtn.addEventListener('click', toggleAuthMode);
-    }
-}
-
-async function handleAuthSubmit(e) {
-    e.preventDefault();
-    
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    const isSignUp = document.getElementById('authSubmit').dataset.mode === 'signup';
-    
-    // Show loading state
-    const submitBtn = document.getElementById('authSubmit');
-    const originalText = submitBtn.innerHTML;
-    submitBtn.innerHTML = 'Processing...';
-    submitBtn.disabled = true;
-    
-    // Clear any previous errors
-    hideAuthError();
-    
-    try {
-        if (isSignUp) {
-            await authManager.signUp(email, password);
-        } else {
-            await authManager.signIn(email, password);
-        }
-    } catch (error) {
-        console.error('Auth error:', error);
-        showAuthError(error.message);
-    } finally {
-        // Reset button
-        submitBtn.innerHTML = originalText;
-        submitBtn.disabled = false;
-    }
-}
-
-function toggleAuthMode() {
-    const submitBtn = document.getElementById('authSubmit');
-    const toggleText = document.getElementById('authToggleText');
-    const toggleBtn = document.getElementById('authToggleBtn');
-    const buttonText = document.getElementById('authButtonText');
-    
-    if (submitBtn.dataset.mode === 'signup') {
-        // Switch to sign in
-        submitBtn.dataset.mode = 'signin';
-        buttonText.textContent = 'Sign In';
-        toggleText.textContent = "Don't have an account?";
-        toggleBtn.textContent = 'Sign Up';
-    } else {
-        // Switch to sign up
-        submitBtn.dataset.mode = 'signup';
-        buttonText.textContent = 'Sign Up';
-        toggleText.textContent = 'Already have an account?';
-        toggleBtn.textContent = 'Sign In';
-    }
-}
-
-function showAuthError(message) {
-    const errorDiv = document.getElementById('authError');
-    if (errorDiv) {
-        errorDiv.textContent = message;
-        errorDiv.classList.remove('hidden');
-    } else {
-        alert('Error: ' + message);
-    }
-}
-
-function hideAuthError() {
-    const errorDiv = document.getElementById('authError');
-    if (errorDiv) {
-        errorDiv.classList.add('hidden');
-    }
-}
-
-function showAuthScreen() {
-    console.log('Showing auth screen');
-    const authScreen = document.getElementById('authScreen');
-    const mainApp = document.getElementById('mainApp');
-    
-    if (authScreen && mainApp) {
-        authScreen.classList.remove('hidden');
-        mainApp.classList.add('hidden');
-    } else {
-        // If no auth screen exists, show main app
-        showMainApp();
-    }
-}
-
-function showMainApp() {
-    console.log('Showing main app');
-    const authScreen = document.getElementById('authScreen');
-    const mainApp = document.getElementById('mainApp');
-    
-    if (authScreen) authScreen.classList.add('hidden');
-    if (mainApp) {
-        mainApp.classList.remove('hidden');
-    } else {
-        // If main app element doesn't exist, we're in simple mode
-        console.log('Main app element not found - using simple mode');
-    }
-    
-    // Update user info if available
-    if (currentUser) {
-        const userEmail = document.getElementById('userEmail');
-        if (userEmail) {
-            userEmail.textContent = currentUser.email;
-        }
-    }
-}
-
-function initializeMainApp() {
-    console.log('Initializing main app features...');
-    
+function initializeApp() {
     // Load existing inspection history
     loadInspectionHistory();
     
     // Set up form submission
-    const inspectionForm = document.getElementById('inspectionForm');
-    if (inspectionForm) {
-        inspectionForm.addEventListener('submit', handleFormSubmit);
-    }
+    document.getElementById('inspectionForm').addEventListener('submit', handleFormSubmit);
     
     // Set today's date as default
-    const dateInput = document.getElementById('inspectionDate');
-    if (dateInput) {
-        dateInput.valueAsDate = new Date();
-    }
+    document.getElementById('inspectionDate').valueAsDate = new Date();
 }
 
 function handleFormSubmit(e) {
@@ -195,8 +33,7 @@ function handleFormSubmit(e) {
         const inspection = {
             ...formData,
             id: generateId(),
-            createdAt: new Date().toISOString(),
-            userId: currentUser ? currentUser.uid : 'local-user'
+            createdAt: new Date().toISOString()
         };
         
         // Save inspection
@@ -270,11 +107,15 @@ function loadInspectionHistory() {
     displayInspectionHistory();
 }
 
-function displayInspectionHistory() {
+async function displayInspectionHistory() {
     const container = document.getElementById('historyContainer');
     const loading = document.getElementById('historyLoading');
     
-    if (!container) return;
+    // Show loading initially
+    if (loading) loading.style.display = 'flex';
+    
+    // Simulate a brief loading delay for better UX
+    await new Promise(resolve => setTimeout(resolve, 300));
     
     // Hide loading
     if (loading) loading.style.display = 'none';
@@ -284,7 +125,14 @@ function displayInspectionHistory() {
         return;
     }
     
-    const html = inspectionHistory.map(inspection => createInspectionCard(inspection)).join('');
+    // Sort inspections by date (newest first)
+    const sortedInspections = inspectionHistory.sort((a, b) => {
+        const dateA = new Date(a.createdAt || a.inspectionDate);
+        const dateB = new Date(b.createdAt || b.inspectionDate);
+        return dateB - dateA;
+    });
+    
+    const html = sortedInspections.map(inspection => createInspectionCard(inspection)).join('');
     container.innerHTML = html;
     
     // Add click handlers for expanding cards
@@ -366,11 +214,8 @@ window.showSection = function(sectionName) {
     });
     
     // Show selected section
-    const targetSection = document.getElementById(sectionName + 'Section');
-    const targetTab = document.getElementById(sectionName + 'Tab');
-    
-    if (targetSection) targetSection.classList.add('active');
-    if (targetTab) targetTab.classList.add('active');
+    document.getElementById(sectionName + 'Section').classList.add('active');
+    document.getElementById(sectionName + 'Tab').classList.add('active');
     
     // Load history when history tab is selected
     if (sectionName === 'history') {
@@ -380,38 +225,8 @@ window.showSection = function(sectionName) {
 
 // Form functions
 window.clearForm = function() {
-    const form = document.getElementById('inspectionForm');
-    if (form) {
-        form.reset();
-        const dateInput = document.getElementById('inspectionDate');
-        if (dateInput) {
-            dateInput.valueAsDate = new Date();
-        }
-    }
-};
-
-// Settings functions (if they exist)
-window.showSettings = function() {
-    const overlay = document.getElementById('settingsOverlay');
-    if (overlay) overlay.classList.add('show');
-};
-
-window.hideSettings = function() {
-    const overlay = document.getElementById('settingsOverlay');
-    if (overlay) overlay.classList.remove('show');
-};
-
-window.signOut = async function() {
-    try {
-        if (authManager) {
-            await authManager.signOut();
-        }
-        const overlay = document.getElementById('settingsOverlay');
-        if (overlay) overlay.classList.remove('show');
-    } catch (error) {
-        console.error('Sign out failed:', error);
-        alert('Failed to sign out. Please try again.');
-    }
+    document.getElementById('inspectionForm').reset();
+    document.getElementById('inspectionDate').valueAsDate = new Date();
 };
 
 // Service worker registration for PWA functionality
