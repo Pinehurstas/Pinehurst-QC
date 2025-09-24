@@ -1,1201 +1,589 @@
-// Copy this entire file and paste it to replace your app.js in GitHub
+import { AuthManager } from './auth.js';
+import { CloudSync } from './cloud-sync.js';
 
-// Pinehurst Quality Control PWA - WITH INSPECTION HISTORY VIEWING
-class PinehurstQC {
-    constructor() {
-        this.currentInspection = null;
-        this.viewingInspection = null; // NEW: For viewing completed inspections
-        this.inspections = [];
-        this.properties = [
-            'Anderson Holmes', 'Aquila Court', 'Aspen', 'AVID', 'Banning Row',
-            'Bristol Village', 'BLVD East', 'Carver Crossing', 'Connelly on Eleven',
-            'Croft', 'Dove Terrace', 'Dove Tree', 'GVG', 'EBG', 'Oak Park Village',
-            'Parkview', 'LHC', 'Northlake Lofts', 'Arbor Lakes', 'Pine Manor',
-            'Tyler Street Stacks', 'Lakeville Pointe', 'Hennepin Apartments',
-            'Maggie Manor Too', 'Lamplighter Village', 'Regency', 'Richfield 1',
-            'Richfield 2', 'Richfield 3', 'River10', 'Rivkin', 'Shores',
-            'TC Ortho', 'The Commons', 'Town Terrace', 'Tree Tops',
-            'Virginia Apartments', 'Virginia Court', 'Virginia Estates',
-            'Virginia Terrace', 'Wexford Commons'
-        ];
+// Global variables
+let authManager;
+let cloudSync;
+let currentUser = null;
+
+// Initialize app when DOM is loaded
+document.addEventListener('DOMContentLoaded', initializeApp);
+
+async function initializeApp() {
+    try {
+        // Initialize authentication
+        authManager = new AuthManager();
         
-        this.inspectionCategories = {
-            'entry-exteriors': {
-                title: 'Entry/Exteriors',
-                items: [
-                    'Main entrance glass cleaned (inside/outside)',
-                    'Exterior doors, frames, and handles wiped down',
-                    'Trash bins emptied and exterior clean',
-                    'Walls free of marks or cobwebs',
-                    'Carpets/Vinyl floors vacuumed/mopped'
-                ]
-            },
-            'common-areas': {
-                title: 'Common Areas (Lobbies, Hallways, etc.)',
-                items: [
-                    'Carpets free of stains',
-                    'Carpets/Vinyl floors vacuumed/mopped',
-                    'Baseboards and corners cleaned',
-                    'Walls free of marks or cobwebs',
-                    'Furniture (if any) wiped and organized',
-                    'Vending machines clean',
-                    'Drinking fountains',
-                    'Doors free of marks',
-                    'Light fixtures dusted/cleaned',
-                    'Stairs vacuumed or mopped',
-                    'Railings free of dust',
-                    'Walls free of marks or cobwebs',
-                    'Windows cleaned & free of dust'
-                ]
-            },
-            'restrooms': {
-                title: 'Restrooms',
-                items: [
-                    'Mirrors and glass spotless',
-                    'Countertops and sinks clean',
-                    'Toilets and urinals spotless',
-                    'Floors dry and clean',
-                    'Soap dispensers full and clean',
-                    'Trash bins emptied and liners replaced'
-                ]
-            },
-            'elevators': {
-                title: 'Elevators',
-                items: [
-                    'Floors clean and free of marks',
-                    'Stainless steel polished',
-                    'Elevator tracks clean',
-                    'Walls and doors free of fingerprints',
-                    'Light fixtures clean'
-                ]
-            },
-            'laundry-rooms': {
-                title: 'Laundry Rooms',
-                items: [
-                    'Machines clean and free of lint or debris',
-                    'Floors swept and mopped',
-                    'Walls free of marks or cobwebs',
-                    'Trash emptied and cleaned',
-                    'Ventilation clear and clean'
-                ]
-            },
-            'lounge-party-room': {
-                title: 'Lounge / Party Room',
-                items: [
-                    'Furniture clean and arranged properly',
-                    'Tables and surfaces wiped down',
-                    'Floors clean and free of debris',
-                    'Walls free of marks or cobwebs',
-                    'Stove clean',
-                    'Microwave clean',
-                    'Trash bins emptied and clean',
-                    'Decorations and plants maintained'
-                ]
-            },
-            'gym': {
-                title: 'Gym',
-                items: [
-                    'Equipment wiped down and in good condition',
-                    'Floors clean and free of dust/debris',
-                    'Mirrors clean and streak-free',
-                    'Walls free of marks or cobwebs',
-                    'Trash bins emptied and clean',
-                    'Vending machines stocked and clean'
-                ]
-            },
-            'trash-chute-rooms': {
-                title: 'Trash Chute Rooms',
-                items: [
-                    'Trash chute door is clean',
-                    'Walls free of marks or cobwebs',
-                    'Floors clean and free of debris'
-                ]
-            },
-            'miscellaneous-areas': {
-                title: 'Miscellaneous Areas',
-                items: [
-                    'Windows cleaned (interior/exterior)',
-                    'Air vents and AC units cleaned',
-                    'Hallway signage clean and visible',
-                    'High dust cleaned'
-                ]
-            }
-        };
-
-        this.init();
-    }
-
-    async init() {
-        await this.loadFromStorage();
-        this.setupEventListeners();
-        this.populatePropertySelects();
-        this.updateDashboard();
-        this.hideLoading();
-    }
-
-    hideLoading() {
-        setTimeout(() => {
-            document.getElementById('loading-screen').style.display = 'none';
-            document.getElementById('main-nav').classList.remove('nav-hidden');
-        }, 1500);
-    }
-
-    setupEventListeners() {
-        // Navigation
-        document.querySelectorAll('.nav-btn, [data-screen]').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const screen = e.target.getAttribute('data-screen');
-                if (screen) this.showScreen(screen);
-            });
-        });
-
-        // Menu toggle
-        document.getElementById('menu-toggle').addEventListener('click', () => {
-            document.querySelector('.nav-menu').classList.toggle('active');
-        });
-
-        // New inspection form
-        document.getElementById('start-inspection').addEventListener('click', () => {
-            this.startNewInspection();
-        });
-
-        // Complete inspection
-        document.getElementById('complete-inspection').addEventListener('click', () => {
-            this.completeInspection();
-        });
-
-        // Photo and note modals
-        document.getElementById('add-photo').addEventListener('click', () => {
-            this.showModal('photo-modal');
-        });
-
-        document.getElementById('add-note').addEventListener('click', () => {
-            this.showModal('note-modal');
-        });
-
-        // Save photo
-        document.getElementById('save-photo').addEventListener('click', () => {
-            this.savePhoto();
-        });
-
-        // Save note
-        document.getElementById('save-note').addEventListener('click', () => {
-            this.saveNote();
-        });
-
-        // Modal close events
-        document.querySelectorAll('.close-btn, .modal-close').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                this.closeModal(e.target.closest('.modal'));
-            });
-        });
-
-        // Photo input change
-        document.getElementById('photo-input').addEventListener('change', (e) => {
-            this.previewPhoto(e.target.files[0]);
-        });
-
-        // Export functions
-        document.getElementById('export-pdf').addEventListener('click', () => {
-            this.exportToPDF();
-        });
-
-        document.getElementById('export-excel').addEventListener('click', () => {
-            this.exportToExcel();
-        });
-
-        // Settings
-        document.getElementById('manual-sync').addEventListener('click', () => {
-            this.syncData();
-        });
-
-        document.getElementById('clear-data').addEventListener('click', () => {
-            this.clearAllData();
-        });
-
-        // Search
-        document.getElementById('inspection-search').addEventListener('input', (e) => {
-            this.searchInspections(e.target.value);
-        });
-
-        // Set current date/time
-        const now = new Date();
-        const datetime = now.toISOString().slice(0, 16);
-        document.getElementById('inspection-date').value = datetime;
-    }
-
-    populatePropertySelects() {
-        const selects = ['property-select', 'report-property'];
-        selects.forEach(selectId => {
-            const select = document.getElementById(selectId);
-            if (select) {
-                // Clear existing options except first one
-                while (select.children.length > 1) {
-                    select.removeChild(select.lastChild);
-                }
-                
-                this.properties.forEach(property => {
-                    const option = document.createElement('option');
-                    option.value = property;
-                    option.textContent = property;
-                    select.appendChild(option);
-                });
-            }
-        });
-    }
-
-    showScreen(screenId) {
-        // Clear viewing mode when navigating away
-        if (screenId !== 'inspection-detail') {
-            this.viewingInspection = null;
-        }
-
-        // Hide all screens
-        document.querySelectorAll('.screen').forEach(screen => {
-            screen.classList.remove('active');
-        });
-
-        // Show target screen
-        document.getElementById(screenId).classList.add('active');
-
-        // Update active nav button
-        document.querySelectorAll('.nav-btn').forEach(btn => {
-            btn.classList.remove('active');
-        });
-        document.querySelector(`[data-screen="${screenId}"]`).classList.add('active');
-
-        // Screen-specific updates
-        if (screenId === 'inspections') {
-            this.renderInspectionsList();
-        } else if (screenId === 'dashboard') {
-            this.updateDashboard();
-        }
-    }
-
-    startNewInspection() {
-        const property = document.getElementById('property-select').value;
-        const inspector = document.getElementById('inspector-name').value;
-        const date = document.getElementById('inspection-date').value;
-
-        if (!property || !inspector || !date) {
-            this.showAlert('Error', 'Please fill in all required fields.');
-            return;
-        }
-
-        this.currentInspection = {
-            id: Date.now(),
-            property: property,
-            inspector: inspector,
-            date: new Date(date).toISOString(),
-            status: 'in-progress',
-            checklist: {},
-            photos: [],
-            notes: [],
-            overallRating: '',
-            missCount: 0
-        };
-
-        // Initialize checklist
-        Object.keys(this.inspectionCategories).forEach(categoryId => {
-            this.currentInspection.checklist[categoryId] = {};
-            this.inspectionCategories[categoryId].items.forEach((item, index) => {
-                this.currentInspection.checklist[categoryId][index] = {
-                    text: item,
-                    status: 'pending' // pending, done, missed
-                };
-            });
-        });
-
-        this.viewingInspection = null; // Clear viewing mode
-        this.renderInspectionDetail();
-        this.showScreen('inspection-detail');
-    }
-
-    renderInspectionDetail() {
-        if (!this.currentInspection && !this.viewingInspection) return;
-
-        const inspection = this.currentInspection || this.viewingInspection;
-        const isViewMode = !!this.viewingInspection;
-
-        document.getElementById('inspection-title').textContent = 
-            `${inspection.property} - ${new Date(inspection.date).toLocaleDateString()}${isViewMode ? ' (View Only)' : ''}`;
-
-        const sectionsContainer = document.getElementById('inspection-sections');
-        sectionsContainer.innerHTML = '';
-
-        // NEW: Show inspection metadata for completed inspections
-        if (isViewMode) {
-            this.renderInspectionMetadata(inspection);
-            
-            // Hide action buttons in view mode
-            document.getElementById('add-photo').style.display = 'none';
-            document.getElementById('add-note').style.display = 'none';
-            document.getElementById('complete-inspection').style.display = 'none';
-            
-            // Show back button
-            const header = document.querySelector('#inspection-detail .header');
-            if (!header.querySelector('.back-btn')) {
-                const backBtn = document.createElement('button');
-                backBtn.className = 'back-btn';
-                backBtn.innerHTML = '← Back to List';
-                backBtn.onclick = () => this.showScreen('inspections');
-                header.insertBefore(backBtn, header.firstChild);
-            }
-        } else {
-            // Show action buttons in edit mode
-            document.getElementById('add-photo').style.display = 'inline-flex';
-            document.getElementById('add-note').style.display = 'inline-flex';
-            document.getElementById('complete-inspection').style.display = 'block';
-            
-            // Remove back button if present
-            const existingBackBtn = document.querySelector('#inspection-detail .header .back-btn');
-            if (existingBackBtn) {
-                existingBackBtn.remove();
-            }
-        }
-
-        Object.keys(this.inspectionCategories).forEach(categoryId => {
-            const category = this.inspectionCategories[categoryId];
-            const sectionDiv = document.createElement('div');
-            sectionDiv.className = 'inspection-section';
-            
-            const checkedItems = Object.values(inspection.checklist[categoryId])
-                .filter(item => item.status !== 'pending').length;
-            const totalItems = category.items.length;
-            
-            sectionDiv.innerHTML = `
-                <div class="section-header" data-category="${categoryId}">
-                    <h3>${category.title} (${checkedItems}/${totalItems})</h3>
-                    <span class="section-toggle">▲</span>
-                </div>
-                <div class="section-content active" id="content-${categoryId}">
-                    ${this.renderChecklistItems(categoryId, category.items, isViewMode)}
-                </div>
-            `;
-
-            sectionsContainer.appendChild(sectionDiv);
-        });
-
-        // Add section toggle functionality (works in both modes)
-        document.querySelectorAll('.section-header').forEach(header => {
-            header.addEventListener('click', (e) => {
-                console.log('Header clicked:', e.target.className, e.target.tagName);
-                
-                const isValidClick = (
-                    e.target === header ||
-                    e.target.tagName === 'H3' ||
-                    e.target.classList.contains('section-toggle')
-                );
-                
-                if (isValidClick) {
-                    const categoryId = header.getAttribute('data-category');
-                    const content = document.getElementById(`content-${categoryId}`);
-                    const toggle = header.querySelector('.section-toggle');
-                    
-                    content.classList.toggle('active');
-                    toggle.textContent = content.classList.contains('active') ? '▲' : '▼';
-                } else {
-                    e.stopPropagation();
-                    e.preventDefault();
-                }
-            });
-        });
-
-        this.updateProgress();
-    }
-
-    // NEW: Render inspection metadata for completed inspections
-    renderInspectionMetadata(inspection) {
-        const sectionsContainer = document.getElementById('inspection-sections');
+        // Set up auth event listeners
+        setupAuthEventListeners();
         
-        // Add metadata section at the top
-        const metadataDiv = document.createElement('div');
-        metadataDiv.className = 'inspection-metadata';
-        metadataDiv.innerHTML = `
-            <div class="metadata-card">
-                <h3>Inspection Summary</h3>
-                <div class="metadata-grid">
-                    <div class="metadata-item">
-                        <div class="metadata-label">Property</div>
-                        <div class="metadata-value">${inspection.property}</div>
-                    </div>
-                    <div class="metadata-item">
-                        <div class="metadata-label">Inspector</div>
-                        <div class="metadata-value">${inspection.inspector}</div>
-                    </div>
-                    <div class="metadata-item">
-                        <div class="metadata-label">Date</div>
-                        <div class="metadata-value">${new Date(inspection.date).toLocaleString()}</div>
-                    </div>
-                    <div class="metadata-item">
-                        <div class="metadata-label">Completed</div>
-                        <div class="metadata-value">${new Date(inspection.completedDate).toLocaleString()}</div>
-                    </div>
-                    <div class="metadata-item">
-                        <div class="metadata-label">Total Items</div>
-                        <div class="metadata-value">${this.getTotalItemCount(inspection)}</div>
-                    </div>
-                    <div class="metadata-item">
-                        <div class="metadata-label">Items Passed</div>
-                        <div class="metadata-value">${this.getDoneItemCount(inspection)}</div>
-                    </div>
-                    <div class="metadata-item">
-                        <div class="metadata-label">Items Missed</div>
-                        <div class="metadata-value">${inspection.missCount}</div>
-                    </div>
-                    <div class="metadata-item">
-                        <div class="metadata-label">Pass Rate</div>
-                        <div class="metadata-value">${this.calculatePassRate(inspection)}%</div>
-                    </div>
-                    <div class="metadata-item">
-                        <div class="metadata-label">Overall Rating</div>
-                        <div class="metadata-value">${this.formatRating(inspection.overallRating)}</div>
-                    </div>
-                </div>
-                ${inspection.notes.length > 0 ? `
-                    <div class="inspection-notes">
-                        <h4>Notes:</h4>
-                        ${inspection.notes.map(note => `
-                            <div class="note-item" style="margin-bottom: 0.5rem; padding: 0.5rem; background: var(--background-color); border-radius: 4px;">
-                                <span style="font-size: 0.875rem; color: var(--text-secondary);">${new Date(note.timestamp).toLocaleString()}:</span>
-                                <div style="margin-top: 0.25rem;">${note.text}</div>
-                            </div>
-                        `).join('')}
-                    </div>
-                ` : ''}
-                ${inspection.photos.length > 0 ? `
-                    <div class="inspection-photos">
-                        <h4>Photos (${inspection.photos.length}):</h4>
-                        <div class="photo-grid">
-                            ${inspection.photos.map(photo => `
-                                <div class="photo-item">
-                                    <img src="${photo.data}" alt="Inspection photo" style="cursor: pointer;" onclick="this.style.position = this.style.position === 'fixed' ? 'static' : 'fixed'; this.style.top = this.style.top === '50%' ? 'auto' : '50%'; this.style.left = this.style.left === '50%' ? 'auto' : '50%'; this.style.transform = this.style.transform === 'translate(-50%, -50%) scale(2)' ? 'none' : 'translate(-50%, -50%) scale(2)'; this.style.zIndex = this.style.zIndex === '9999' ? 'auto' : '9999';">
-                                    ${photo.caption ? `<p style="margin-top: 0.5rem; font-size: 0.875rem; color: var(--text-secondary);">${photo.caption}</p>` : ''}
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                ` : ''}
-            </div>
-        `;
-        
-        sectionsContainer.appendChild(metadataDiv);
-    }
-
-    renderChecklistItems(categoryId, items, isViewMode = false) {
-        const inspection = this.currentInspection || this.viewingInspection;
-        
-        return items.map((item, index) => {
-            const checklistItem = inspection.checklist[categoryId][index];
-            const isDone = checklistItem.status === 'done';
-            const isMissed = checklistItem.status === 'missed';
-            const isPending = checklistItem.status === 'pending';
-            
-            // Different rendering for view mode vs edit mode
-            if (isViewMode) {
-                let statusIcon = '⏳'; // pending
-                let statusClass = 'status-pending';
-                let statusText = 'Pending';
-                
-                if (isDone) {
-                    statusIcon = '✅';
-                    statusClass = 'status-done';
-                    statusText = 'Done';
-                } else if (isMissed) {
-                    statusIcon = '❌';
-                    statusClass = 'status-missed';
-                    statusText = 'Missed';
-                }
-                
-                return `
-                    <div class="checklist-item ${statusClass}">
-                        <div class="item-text">${item}</div>
-                        <div class="item-status ${isDone ? 'done' : (isMissed ? 'missed' : 'pending')}">
-                            ${statusIcon} ${statusText}
-                        </div>
-                    </div>
-                `;
+        // Listen for authentication state changes
+        authManager.onAuthStateChanged(async (user) => {
+            if (user) {
+                currentUser = user;
+                await initializeMainApp();
+                showMainApp();
             } else {
-                // Edit mode (current behavior)
-                return `
-                    <div class="checklist-item" onclick="event.stopPropagation();">
-                        <div class="item-text">${item}</div>
-                        <div class="item-controls">
-                            <div class="toggle-switch ${isDone ? 'done' : ''}" 
-                                 data-category="${categoryId}" 
-                                 data-index="${index}"
-                                 onclick="event.stopPropagation();">
-                            </div>
-                            <div class="toggle-label ${isDone ? 'done' : (isMissed ? 'missed' : '')}" onclick="event.stopPropagation();">
-                                ${isDone ? 'Done' : (isMissed ? 'Missed' : 'Pending')}
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
-        }).join('');
-    }
-
-    // NEW: Helper functions for metadata
-    getTotalItemCount(inspection) {
-        let total = 0;
-        Object.keys(inspection.checklist).forEach(categoryId => {
-            total += Object.keys(inspection.checklist[categoryId]).length;
-        });
-        return total;
-    }
-
-    getDoneItemCount(inspection) {
-        let done = 0;
-        Object.keys(inspection.checklist).forEach(categoryId => {
-            Object.values(inspection.checklist[categoryId]).forEach(item => {
-                if (item.status === 'done') done++;
-            });
-        });
-        return done;
-    }
-
-    updateProgress() {
-        const inspection = this.currentInspection || this.viewingInspection;
-        if (!inspection) return;
-
-        let totalItems = 0;
-        let completedItems = 0;
-
-        Object.keys(inspection.checklist).forEach(categoryId => {
-            Object.values(inspection.checklist[categoryId]).forEach(item => {
-                totalItems++;
-                if (item.status !== 'pending') completedItems++;
-            });
-        });
-
-        const progress = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
-        const progressFill = document.getElementById('progress-fill');
-        if (progressFill) {
-            progressFill.style.width = `${progress}%`;
-        }
-
-        // Re-render section headers with updated counts
-        Object.keys(this.inspectionCategories).forEach(categoryId => {
-            const header = document.querySelector(`[data-category="${categoryId}"]`);
-            if (header) {
-                const checkedItems = Object.values(inspection.checklist[categoryId])
-                    .filter(item => item.status !== 'pending').length;
-                const totalItems = this.inspectionCategories[categoryId].items.length;
-                const h3 = header.querySelector('h3');
-                if (h3) {
-                    h3.textContent = `${this.inspectionCategories[categoryId].title} (${checkedItems}/${totalItems})`;
-                }
-            }
-        });
-    }
-
-    setupDynamicEventListeners() {
-        // Use capture phase to catch events before they bubble
-        document.addEventListener('click', (e) => {
-            console.log('Click detected:', e.target.className, e.target.tagName);
-            
-            if (e.target.classList.contains('toggle-switch')) {
-                console.log('Toggle switch clicked!');
-                // Stop all propagation immediately
-                e.stopImmediatePropagation();
-                e.preventDefault();
-                
-                // Only allow toggling in edit mode (not view mode)
-                if (!this.viewingInspection) {
-                    const categoryId = e.target.getAttribute('data-category');
-                    const index = parseInt(e.target.getAttribute('data-index'));
-                    this.toggleChecklistItem(categoryId, index);
-                }
-                return false;
-            }
-            
-            // Also catch clicks on the item controls area
-            if (e.target.classList.contains('item-controls') || 
-                e.target.closest('.item-controls')) {
-                e.stopPropagation();
-                e.preventDefault();
-                return false;
-            }
-            
-            // Catch clicks on checklist items
-            if (e.target.classList.contains('checklist-item') || 
-                e.target.closest('.checklist-item')) {
-                e.stopPropagation();
-                return false;
-            }
-        }, true); // Use capture phase
-    }
-
-    toggleChecklistItem(categoryId, index) {
-        console.log('Toggling item:', categoryId, index);
-        
-        if (!this.currentInspection) return;
-
-        const item = this.currentInspection.checklist[categoryId][index];
-        
-        // Cycle through states: pending -> done -> missed -> pending
-        switch (item.status) {
-            case 'pending':
-                item.status = 'done';
-                break;
-            case 'done':
-                item.status = 'missed';
-                break;
-            case 'missed':
-                item.status = 'pending';
-                break;
-        }
-
-        console.log('New status:', item.status);
-
-        this.calculateMissCount();
-        this.checkTriggers();
-        
-        // Update only the specific toggle instead of re-rendering entire section
-        this.updateSingleToggle(categoryId, index);
-        this.updateProgress();
-        this.saveToStorage();
-    }
-
-    // Update just one toggle without re-rendering everything
-    updateSingleToggle(categoryId, index) {
-        const item = this.currentInspection.checklist[categoryId][index];
-        const toggleSwitch = document.querySelector(`[data-category="${categoryId}"][data-index="${index}"]`);
-        const toggleLabel = toggleSwitch?.nextElementSibling;
-        
-        if (toggleSwitch && toggleLabel) {
-            const isDone = item.status === 'done';
-            const isMissed = item.status === 'missed';
-            
-            // Update toggle switch appearance
-            toggleSwitch.className = `toggle-switch ${isDone ? 'done' : ''}`;
-            
-            // Update label
-            toggleLabel.className = `toggle-label ${isDone ? 'done' : (isMissed ? 'missed' : '')}`;
-            toggleLabel.textContent = isDone ? 'Done' : (isMissed ? 'Missed' : 'Pending');
-        }
-    }
-
-    calculateMissCount() {
-        if (!this.currentInspection) return;
-
-        let missCount = 0;
-        Object.keys(this.currentInspection.checklist).forEach(categoryId => {
-            Object.values(this.currentInspection.checklist[categoryId]).forEach(item => {
-                if (item.status === 'missed') missCount++;
-            });
-        });
-
-        this.currentInspection.missCount = missCount;
-    }
-
-    checkTriggers() {
-        if (!this.currentInspection) return;
-
-        const missCount = this.currentInspection.missCount;
-        
-        if (missCount >= 10) {
-            this.showAlert('Retraining Required', 
-                `${missCount} items missed. Immediate retraining and written communication required.`);
-        } else if (missCount >= 5) {
-            this.showAlert('Communication Required', 
-                `${missCount} items missed. Verbal/written communication required.`);
-        }
-
-        // Check for repeated misses of same items
-        this.checkRepeatedMisses();
-    }
-
-    checkRepeatedMisses() {
-        // This would check against historical data for same property/item combinations
-        // For now, we'll show a placeholder
-        const property = this.currentInspection.property;
-        const repeatedMisses = this.analyzeRepeatedMisses(property);
-        
-        if (repeatedMisses.length > 0) {
-            this.showAlert('Repeated Issues Detected', 
-                `The following items have been missed multiple times at ${property}: ${repeatedMisses.join(', ')}`);
-        }
-    }
-
-    analyzeRepeatedMisses(property) {
-        // Analyze historical inspections for repeated misses
-        const propertyInspections = this.inspections.filter(insp => insp.property === property);
-        const missedItems = {};
-        const repeatedMisses = [];
-
-        propertyInspections.forEach(inspection => {
-            Object.keys(inspection.checklist).forEach(categoryId => {
-                Object.values(inspection.checklist[categoryId]).forEach(item => {
-                    if (item.status === 'missed') {
-                        if (!missedItems[item.text]) {
-                            missedItems[item.text] = 0;
-                        }
-                        missedItems[item.text]++;
-                    }
-                });
-            });
-        });
-
-        // Add current inspection misses
-        if (this.currentInspection) {
-            Object.keys(this.currentInspection.checklist).forEach(categoryId => {
-                Object.values(this.currentInspection.checklist[categoryId]).forEach(item => {
-                    if (item.status === 'missed') {
-                        if (!missedItems[item.text]) {
-                            missedItems[item.text] = 0;
-                        }
-                        missedItems[item.text]++;
-                    }
-                });
-            });
-        }
-
-        // Check for items missed 5+ times
-        Object.keys(missedItems).forEach(itemText => {
-            if (missedItems[itemText] >= 5) {
-                repeatedMisses.push(itemText);
+                currentUser = null;
+                showAuthScreen();
             }
         });
 
-        return repeatedMisses;
-    }
-
-    completeInspection() {
-        if (!this.currentInspection) return;
-
-        const overallRating = document.getElementById('overall-rating').value;
-        if (!overallRating) {
-            this.showAlert('Error', 'Please select an overall cleanliness rating.');
-            return;
-        }
-
-        this.currentInspection.overallRating = overallRating;
-        this.currentInspection.status = 'completed';
-        this.currentInspection.completedDate = new Date().toISOString();
-
-        this.inspections.push(this.currentInspection);
-        this.saveToStorage();
-
-        this.showAlert('Inspection Complete', 
-            `Inspection for ${this.currentInspection.property} has been completed and saved.`);
-
-        this.currentInspection = null;
-        this.showScreen('dashboard');
-    }
-
-    // NEW: Function to view completed inspection details
-    viewInspectionDetail(inspection) {
-        console.log('Viewing inspection:', inspection.id);
-        this.viewingInspection = inspection;
-        this.currentInspection = null; // Clear current inspection
-        this.renderInspectionDetail();
-        this.showScreen('inspection-detail');
-    }
-
-    renderInspectionsList() {
-        const listContainer = document.getElementById('inspections-list');
-        listContainer.innerHTML = '';
-
-        if (this.inspections.length === 0) {
-            listContainer.innerHTML = '<p class="text-center">No inspections found.</p>';
-            return;
-        }
-
-        this.inspections.slice().reverse().forEach(inspection => {
-            const card = document.createElement('div');
-            card.className = 'inspection-card clickable'; // Added clickable class
-            
-            const statusClass = inspection.status === 'completed' ? 'status-completed' : 'status-pending';
-            const ratingClass = this.getRatingClass(inspection.overallRating);
-            const passRate = this.calculatePassRate(inspection);
-            
-            card.innerHTML = `
-                <div class="inspection-header">
-                    <div>
-                        <div class="inspection-title">${inspection.property}</div>
-                        <div class="inspection-date">${new Date(inspection.date).toLocaleDateString()} - ${inspection.inspector}</div>
-                    </div>
-                    <div class="inspection-status ${statusClass}">${inspection.status}</div>
-                </div>
-                <div class="inspection-summary">
-                    <span>Pass Rate: <span class="score-indicator ${ratingClass}">${passRate}%</span></span>
-                    <span>Misses: ${inspection.missCount}</span>
-                    <span>Rating: <span class="score-indicator ${ratingClass}">${this.formatRating(inspection.overallRating)}</span></span>
-                </div>
-                <div class="inspection-actions">
-                    <small>Click to view details</small>
-                </div>
-            `;
-
-            // NEW: Add click handler to view inspection details
-            card.addEventListener('click', () => {
-                this.viewInspectionDetail(inspection);
-            });
-
-            listContainer.appendChild(card);
-        });
-    }
-
-    calculatePassRate(inspection) {
-        let totalItems = 0;
-        let doneItems = 0;
-
-        Object.keys(inspection.checklist).forEach(categoryId => {
-            Object.values(inspection.checklist[categoryId]).forEach(item => {
-                totalItems++;
-                if (item.status === 'done') doneItems++;
-            });
-        });
-
-        return totalItems > 0 ? Math.round((doneItems / totalItems) * 100) : 0;
-    }
-
-    getRatingClass(rating) {
-        const classMap = {
-            'excellent': 'score-excellent',
-            'good': 'score-good',
-            'neutral': 'score-neutral',
-            'bad': 'score-bad',
-            'extremely-bad': 'score-extremely-bad'
-        };
-        return classMap[rating] || '';
-    }
-
-    formatRating(rating) {
-        const formatMap = {
-            'excellent': 'Excellent',
-            'good': 'Good',
-            'neutral': 'Neutral',
-            'bad': 'Bad',
-            'extremely-bad': 'Extremely Bad'
-        };
-        return formatMap[rating] || 'Not Rated';
-    }
-
-    updateDashboard() {
-        const totalInspections = this.inspections.length;
-        const pendingSync = this.inspections.filter(insp => !insp.synced).length;
-        const avgScore = this.calculateAverageScore();
-
-        document.getElementById('total-inspections').textContent = totalInspections;
-        document.getElementById('pending-sync').textContent = pendingSync;
-        document.getElementById('avg-score').textContent = `${avgScore}%`;
-
-        // Update recent inspections
-        const recentList = document.getElementById('recent-list');
-        const recentInspections = this.inspections.slice(-5).reverse();
+        // Set up form submission
+        setupFormSubmission();
         
-        if (recentInspections.length === 0) {
-            recentList.innerHTML = '<p class="text-center">No recent inspections.</p>';
+        // Set today's date as default
+        document.getElementById('inspectionDate').valueAsDate = new Date();
+        
+    } catch (error) {
+        console.error('Failed to initialize app:', error);
+        showError('Failed to initialize application. Please refresh the page.');
+    }
+}
+
+function setupAuthEventListeners() {
+    const authForm = document.getElementById('authForm');
+    const authToggleBtn = document.getElementById('authToggleBtn');
+    
+    authForm.addEventListener('submit', handleAuthSubmit);
+    authToggleBtn.addEventListener('click', toggleAuthMode);
+}
+
+async function handleAuthSubmit(e) {
+    e.preventDefault();
+    
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    const isSignUp = document.getElementById('authSubmit').dataset.mode === 'signup';
+    
+    // Show loading state
+    const submitBtn = document.getElementById('authSubmit');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<div class="loading-spinner"></div>Processing...';
+    submitBtn.disabled = true;
+    
+    // Clear any previous errors
+    hideAuthError();
+    
+    try {
+        if (isSignUp) {
+            await authManager.signUp(email, password);
         } else {
-            recentList.innerHTML = recentInspections.map(inspection => `
-                <div class="inspection-card clickable" onclick="app.viewInspectionDetail(${JSON.stringify(inspection).replace(/"/g, '&quot;')})">
-                    <div class="inspection-header">
-                        <div>
-                            <div class="inspection-title">${inspection.property}</div>
-                            <div class="inspection-date">${new Date(inspection.date).toLocaleDateString()}</div>
-                        </div>
-                    </div>
-                    <div class="inspection-summary">
-                        <span>Pass Rate: ${this.calculatePassRate(inspection)}%</span>
-                        <span>Misses: ${inspection.missCount}</span>
-                    </div>
-                    <div class="inspection-actions">
-                        <small>Click to view details</small>
-                    </div>
-                </div>
-            `).join('');
+            await authManager.signIn(email, password);
         }
+    } catch (error) {
+        showAuthError(error.message);
+    } finally {
+        // Reset button
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
     }
+}
 
-    calculateAverageScore() {
-        if (this.inspections.length === 0) return 0;
-
-        const totalScore = this.inspections.reduce((sum, inspection) => {
-            return sum + this.calculatePassRate(inspection);
-        }, 0);
-
-        return Math.round(totalScore / this.inspections.length);
+function toggleAuthMode() {
+    const submitBtn = document.getElementById('authSubmit');
+    const toggleText = document.getElementById('authToggleText');
+    const toggleBtn = document.getElementById('authToggleBtn');
+    const buttonText = document.getElementById('authButtonText');
+    
+    if (submitBtn.dataset.mode === 'signup') {
+        // Switch to sign in
+        submitBtn.dataset.mode = 'signin';
+        buttonText.textContent = 'Sign In';
+        toggleText.textContent = "Don't have an account?";
+        toggleBtn.textContent = 'Sign Up';
+    } else {
+        // Switch to sign up
+        submitBtn.dataset.mode = 'signup';
+        buttonText.textContent = 'Sign Up';
+        toggleText.textContent = 'Already have an account?';
+        toggleBtn.textContent = 'Sign In';
     }
+}
 
-    showModal(modalId) {
-        const modal = document.getElementById(modalId);
-        modal.classList.add('active');
+function showAuthError(message) {
+    const errorDiv = document.getElementById('authError');
+    errorDiv.textContent = message;
+    errorDiv.classList.remove('hidden');
+}
+
+function hideAuthError() {
+    const errorDiv = document.getElementById('authError');
+    errorDiv.classList.add('hidden');
+}
+
+function showAuthScreen() {
+    document.getElementById('authScreen').classList.remove('hidden');
+    document.getElementById('mainApp').classList.add('hidden');
+}
+
+function showMainApp() {
+    document.getElementById('authScreen').classList.add('hidden');
+    document.getElementById('mainApp').classList.remove('hidden');
+    
+    // Update user info in settings
+    if (currentUser) {
+        document.getElementById('userEmail').textContent = currentUser.email;
+    }
+}
+
+async function initializeMainApp() {
+    try {
+        // Initialize cloud sync
+        cloudSync = new CloudSync(currentUser.uid);
         
-        // Focus first input
-        const firstInput = modal.querySelector('input, textarea');
-        if (firstInput) firstInput.focus();
-    }
-
-    closeModal(modal) {
-        if (modal) {
-            modal.classList.remove('active');
-        }
-    }
-
-    previewPhoto(file) {
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const preview = document.getElementById('photo-preview');
-            preview.innerHTML = `<img src="${e.target.result}" alt="Photo preview">`;
-        };
-        reader.readAsDataURL(file);
-    }
-
-    savePhoto() {
-        const fileInput = document.getElementById('photo-input');
-        const caption = document.getElementById('photo-caption').value;
+        // Set up real-time sync
+        await cloudSync.setupRealtimeSync();
         
-        if (!fileInput.files[0]) {
-            this.showAlert('Error', 'Please select a photo first.');
-            return;
-        }
-
-        if (!this.currentInspection) {
-            this.showAlert('Error', 'No active inspection.');
-            return;
-        }
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const photo = {
-                id: Date.now(),
-                data: e.target.result,
-                caption: caption,
-                timestamp: new Date().toISOString()
-            };
-
-            this.currentInspection.photos.push(photo);
-            this.saveToStorage();
-            this.closeModal(document.getElementById('photo-modal'));
-            
-            // Reset form
-            fileInput.value = '';
-            document.getElementById('photo-caption').value = '';
-            document.getElementById('photo-preview').innerHTML = '';
-            
-            this.showAlert('Success', 'Photo saved to inspection.');
-        };
-        reader.readAsDataURL(fileInput.files[0]);
-    }
-
-    saveNote() {
-        const noteInput = document.getElementById('note-input');
-        const noteText = noteInput.value.trim();
+        // Set up sync status listeners
+        setupSyncStatusListeners();
         
-        if (!noteText) {
-            this.showAlert('Error', 'Please enter a note.');
-            return;
-        }
-
-        if (!this.currentInspection) {
-            this.showAlert('Error', 'No active inspection.');
-            return;
-        }
-
-        const note = {
-            id: Date.now(),
-            text: noteText,
-            timestamp: new Date().toISOString()
-        };
-
-        this.currentInspection.notes.push(note);
-        this.saveToStorage();
-        this.closeModal(document.getElementById('note-modal'));
+        // Load inspection history
+        await loadInspectionHistory();
         
-        // Reset form
-        noteInput.value = '';
+        // Set up auto-save for the inspection form
+        setupAutoSave();
         
-        this.showAlert('Success', 'Note saved to inspection.');
+    } catch (error) {
+        console.error('Failed to initialize main app:', error);
+        updateSyncStatus('offline', 'Connection failed');
     }
+}
 
-    searchInspections(query) {
-        const filteredInspections = this.inspections.filter(inspection => 
-            inspection.property.toLowerCase().includes(query.toLowerCase()) ||
-            inspection.inspector.toLowerCase().includes(query.toLowerCase())
-        );
-        
-        this.renderFilteredInspections(filteredInspections);
+function setupSyncStatusListeners() {
+    // Listen for online/offline events
+    window.addEventListener('online', () => {
+        updateSyncStatus('syncing', 'Reconnecting...');
+        cloudSync.processPendingOperations();
+    });
+    
+    window.addEventListener('offline', () => {
+        updateSyncStatus('offline', 'Offline mode');
+    });
+    
+    // Set initial status
+    if (navigator.onLine) {
+        updateSyncStatus('connected', 'Connected');
+    } else {
+        updateSyncStatus('offline', 'Offline mode');
     }
+}
 
-    renderFilteredInspections(inspections) {
-        const listContainer = document.getElementById('inspections-list');
-        listContainer.innerHTML = '';
-
-        if (inspections.length === 0) {
-            listContainer.innerHTML = '<p class="text-center">No matching inspections found.</p>';
-            return;
-        }
-
-        // Use same rendering logic as renderInspectionsList but with filtered data
-        inspections.reverse().forEach(inspection => {
-            const card = document.createElement('div');
-            card.className = 'inspection-card clickable';
-            
-            const statusClass = inspection.status === 'completed' ? 'status-completed' : 'status-pending';
-            const ratingClass = this.getRatingClass(inspection.overallRating);
-            const passRate = this.calculatePassRate(inspection);
-            
-            card.innerHTML = `
-                <div class="inspection-header">
-                    <div>
-                        <div class="inspection-title">${inspection.property}</div>
-                        <div class="inspection-date">${new Date(inspection.date).toLocaleDateString()} - ${inspection.inspector}</div>
-                    </div>
-                    <div class="inspection-status ${statusClass}">${inspection.status}</div>
-                </div>
-                <div class="inspection-summary">
-                    <span>Pass Rate: <span class="score-indicator ${ratingClass}">${passRate}%</span></span>
-                    <span>Misses: ${inspection.missCount}</span>
-                    <span>Rating: <span class="score-indicator ${ratingClass}">${this.formatRating(inspection.overallRating)}</span></span>
-                </div>
-                <div class="inspection-actions">
-                    <small>Click to view details</small>
-                </div>
-            `;
-
-            card.addEventListener('click', () => {
-                this.viewInspectionDetail(inspection);
-            });
-
-            listContainer.appendChild(card);
-        });
+function updateSyncStatus(status, text) {
+    const indicator = document.getElementById('syncIndicator');
+    const statusText = document.getElementById('syncStatus');
+    const settingsStatus = document.getElementById('settingsSyncStatus');
+    
+    // Remove all status classes
+    indicator.classList.remove('syncing', 'offline');
+    
+    // Add appropriate class
+    if (status !== 'connected') {
+        indicator.classList.add(status);
     }
-
-    exportToPDF() {
-        // This would implement PDF generation
-        // For now, show a placeholder
-        this.showAlert('Export PDF', 'PDF export functionality would be implemented here using a library like jsPDF.');
+    
+    // Update text
+    statusText.textContent = text;
+    if (settingsStatus) {
+        settingsStatus.textContent = text;
     }
+}
 
-    exportToExcel() {
-        if (this.inspections.length === 0) {
-            this.showAlert('Error', 'No inspections to export.');
-            return;
-        }
+function setupAutoSave() {
+    const form = document.getElementById('inspectionForm');
+    const inputs = form.querySelectorAll('input, select, textarea');
+    
+    // Save form data as user types
+    inputs.forEach(input => {
+        input.addEventListener('input', debounce(() => {
+            saveFormDraft();
+        }, 1000));
+    });
+}
 
-        // Create CSV data (simple Excel-compatible format)
-        let csvContent = "data:text/csv;charset=utf-8,";
-        
-        // Headers
-        csvContent += "Property,Inspector,Date,Status,Overall Rating,Pass Rate,Miss Count,Notes\n";
-        
-        // Data
-        this.inspections.forEach(inspection => {
-            const passRate = this.calculatePassRate(inspection);
-            const notes = inspection.notes.map(n => n.text).join('; ');
-            
-            csvContent += `"${inspection.property}","${inspection.inspector}","${new Date(inspection.date).toLocaleString()}","${inspection.status}","${this.formatRating(inspection.overallRating)}","${passRate}%","${inspection.missCount}","${notes}"\n`;
-        });
+function saveFormDraft() {
+    const formData = collectFormData();
+    localStorage.setItem('inspectionDraft', JSON.stringify(formData));
+}
 
-        // Download
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", `pinehurst_inspections_${new Date().toISOString().split('T')[0]}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-        this.showAlert('Success', 'Inspections exported to CSV file.');
-    }
-
-    syncData() {
-        // This would implement actual sync with server
-        this.showAlert('Sync', 'Data sync functionality would connect to your server API here.');
-        
-        // Mark all as synced for demo
-        this.inspections.forEach(inspection => {
-            inspection.synced = true;
-        });
-        this.saveToStorage();
-        this.updateDashboard();
-    }
-
-    clearAllData() {
-        if (confirm('Are you sure you want to clear all inspection data? This cannot be undone.')) {
-            this.inspections = [];
-            this.currentInspection = null;
-            this.viewingInspection = null;
-            this.saveToStorage();
-            this.updateDashboard();
-            this.renderInspectionsList();
-            this.showAlert('Success', 'All data has been cleared.');
-        }
-    }
-
-    showAlert(title, message) {
-        document.getElementById('alert-title').textContent = title;
-        document.getElementById('alert-message').textContent = message;
-        this.showModal('alert-modal');
-    }
-
-    // Storage functions
-    async loadFromStorage() {
+function loadFormDraft() {
+    const draft = localStorage.getItem('inspectionDraft');
+    if (draft) {
         try {
-            const inspections = localStorage.getItem('pinehurst_inspections');
-            if (inspections) {
-                this.inspections = JSON.parse(inspections);
-            }
-
-            const currentInspection = localStorage.getItem('pinehurst_current_inspection');
-            if (currentInspection) {
-                this.currentInspection = JSON.parse(currentInspection);
-            }
-
-            // Load inspector name
-            const savedInspector = localStorage.getItem('pinehurst_inspector_name');
-            if (savedInspector) {
-                document.getElementById('inspector-name').value = savedInspector;
-            }
+            const data = JSON.parse(draft);
+            populateForm(data);
         } catch (error) {
-            console.error('Error loading from storage:', error);
-        }
-    }
-
-    saveToStorage() {
-        try {
-            localStorage.setItem('pinehurst_inspections', JSON.stringify(this.inspections));
-            
-            if (this.currentInspection) {
-                localStorage.setItem('pinehurst_current_inspection', JSON.stringify(this.currentInspection));
-            } else {
-                localStorage.removeItem('pinehurst_current_inspection');
-            }
-
-            // Save inspector name
-            const inspectorName = document.getElementById('inspector-name');
-            if (inspectorName && inspectorName.value) {
-                localStorage.setItem('pinehurst_inspector_name', inspectorName.value);
-            }
-        } catch (error) {
-            console.error('Error saving to storage:', error);
+            console.error('Failed to load draft:', error);
         }
     }
 }
 
-// Initialize the app when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-    // Make app globally accessible for dashboard clicks
-    window.app = new PinehurstQC();
+function clearFormDraft() {
+    localStorage.removeItem('inspectionDraft');
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+function setupFormSubmission() {
+    document.getElementById('inspectionForm').addEventListener('submit', handleFormSubmit);
+}
+
+async function handleFormSubmit(e) {
+    e.preventDefault();
     
-    // Set up dynamic event listeners
-    app.setupDynamicEventListeners();
+    if (!cloudSync) {
+        showError('Cloud sync not initialized. Please try again.');
+        return;
+    }
     
-    // Register service worker
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js')
-                .then(registration => {
-                    console.log('SW registered: ', registration);
-                })
-                .catch(registrationError => {
-                    console.log('SW registration failed: ', registrationError);
-                });
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    
+    try {
+        // Show loading state
+        submitBtn.textContent = 'Saving...';
+        submitBtn.disabled = true;
+        updateSyncStatus('syncing', 'Saving inspection...');
+        
+        // Collect form data
+        const formData = collectFormData();
+        
+        // Add metadata
+        const inspection = {
+            ...formData,
+            id: generateId(),
+            createdAt: new Date().toISOString(),
+            userId: currentUser.uid
+        };
+        
+        // Save to cloud
+        await cloudSync.saveInspection(inspection);
+        
+        // Clear the form and draft
+        clearForm();
+        clearFormDraft();
+        
+        // Show success message
+        updateSyncStatus('connected', 'Inspection saved');
+        showSuccess('Inspection saved successfully!');
+        
+        // Switch to history tab to show the new inspection
+        showSection('history');
+        
+    } catch (error) {
+        console.error('Failed to save inspection:', error);
+        updateSyncStatus('offline', 'Save failed');
+        showError('Failed to save inspection. Data saved locally and will sync when connection is restored.');
+    } finally {
+        // Reset button
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+    }
+}
+
+function collectFormData() {
+    const form = document.getElementById('inspectionForm');
+    const formData = new FormData(form);
+    
+    // Convert FormData to object
+    const data = {};
+    for (let [key, value] of formData.entries()) {
+        if (data[key]) {
+            // Handle multiple values (like checkboxes)
+            if (Array.isArray(data[key])) {
+                data[key].push(value);
+            } else {
+                data[key] = [data[key], value];
+            }
+        } else {
+            data[key] = value;
+        }
+    }
+    
+    // Get individual form fields
+    data.propertyAddress = document.getElementById('propertyAddress').value;
+    data.unitNumber = document.getElementById('unitNumber').value;
+    data.inspectionType = document.getElementById('inspectionType').value;
+    data.inspectorName = document.getElementById('inspectorName').value;
+    data.inspectionDate = document.getElementById('inspectionDate').value;
+    data.additionalNotes = document.getElementById('additionalNotes').value;
+    
+    // Get checked rooms
+    data.rooms = Array.from(document.querySelectorAll('input[name="rooms"]:checked'))
+        .map(cb => cb.value);
+    
+    // Get checked issues
+    data.issues = Array.from(document.querySelectorAll('input[name="issues"]:checked'))
+        .map(cb => cb.value);
+    
+    return data;
+}
+
+function populateForm(data) {
+    // Set text inputs
+    if (data.propertyAddress) document.getElementById('propertyAddress').value = data.propertyAddress;
+    if (data.unitNumber) document.getElementById('unitNumber').value = data.unitNumber;
+    if (data.inspectionType) document.getElementById('inspectionType').value = data.inspectionType;
+    if (data.inspectorName) document.getElementById('inspectorName').value = data.inspectorName;
+    if (data.inspectionDate) document.getElementById('inspectionDate').value = data.inspectionDate;
+    if (data.additionalNotes) document.getElementById('additionalNotes').value = data.additionalNotes;
+    
+    // Set checkboxes
+    if (data.rooms) {
+        data.rooms.forEach(room => {
+            const checkbox = document.getElementById(room);
+            if (checkbox) checkbox.checked = true;
         });
     }
+    
+    if (data.issues) {
+        data.issues.forEach(issue => {
+            const checkbox = document.getElementById(issue);
+            if (checkbox) checkbox.checked = true;
+        });
+    }
+}
+
+function generateId() {
+    return Date.now().toString(36) + Math.random().toString(36).substr(2);
+}
+
+async function loadInspectionHistory() {
+    const container = document.getElementById('historyContainer');
+    const loading = document.getElementById('historyLoading');
+    
+    try {
+        loading.style.display = 'flex';
+        
+        if (!cloudSync) {
+            throw new Error('Cloud sync not available');
+        }
+        
+        const inspections = await cloudSync.getInspections();
+        displayInspectionHistory(inspections);
+        
+    } catch (error) {
+        console.error('Failed to load inspection history:', error);
+        
+        // Try to load from local storage as fallback
+        const localInspections = getLocalInspections();
+        if (localInspections.length > 0) {
+            displayInspectionHistory(localInspections);
+            updateSyncStatus('offline', 'Showing local data');
+        } else {
+            container.innerHTML = '<div class="no-history"><div class="icon">📋</div><p>No inspections found.<br>Create your first inspection to get started!</p></div>';
+        }
+    } finally {
+        loading.style.display = 'none';
+    }
+}
+
+function displayInspectionHistory(inspections) {
+    const container = document.getElementById('historyContainer');
+    
+    if (!inspections || inspections.length === 0) {
+        container.innerHTML = '<div class="no-history"><div class="icon">📋</div><p>No inspections found.<br>Create your first inspection to get started!</p></div>';
+        return;
+    }
+    
+    // Sort inspections by date (newest first)
+    const sortedInspections = inspections.sort((a, b) => {
+        const dateA = new Date(a.createdAt || a.inspectionDate);
+        const dateB = new Date(b.createdAt || b.inspectionDate);
+        return dateB - dateA;
+    });
+    
+    const html = sortedInspections.map(inspection => createInspectionCard(inspection)).join('');
+    container.innerHTML = html;
+    
+    // Add click handlers for expanding cards
+    container.querySelectorAll('.inspection-header').forEach(header => {
+        header.addEventListener('click', () => {
+            const details = header.nextElementSibling;
+            details.classList.toggle('show');
+        });
+    });
+}
+
+function createInspectionCard(inspection) {
+    const date = new Date(inspection.createdAt || inspection.inspectionDate);
+    const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    
+    const roomsList = inspection.rooms && inspection.rooms.length > 0 
+        ? inspection.rooms.map(room => room.replace('_', ' ')).join(', ')
+        : 'No rooms specified';
+    
+    const issuesList = inspection.issues && inspection.issues.length > 0
+        ? inspection.issues.map(issue => `<li>${issue.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}</li>`).join('')
+        : '<li style="background: #d4edda; border-color: #c3e6cb; color: #155724;">No issues found</li>';
+    
+    return `
+        <div class="inspection-card">
+            <div class="inspection-header">
+                <div>
+                    <div class="inspection-title">
+                        ${inspection.propertyAddress || 'No address specified'}
+                        ${inspection.unitNumber ? ` - Unit ${inspection.unitNumber}` : ''}
+                    </div>
+                    <div class="inspection-date">${formattedDate}</div>
+                </div>
+            </div>
+            <div class="inspection-details">
+                <div class="detail-section">
+                    <h4>Basic Information</h4>
+                    <div class="detail-grid">
+                        <span class="detail-label">Type:</span>
+                        <span class="detail-value">${inspection.inspectionType || 'Not specified'}</span>
+                        <span class="detail-label">Inspector:</span>
+                        <span class="detail-value">${inspection.inspectorName || 'Not specified'}</span>
+                        <span class="detail-label">Date:</span>
+                        <span class="detail-value">${inspection.inspectionDate || 'Not specified'}</span>
+                    </div>
+                </div>
+                
+                <div class="detail-section">
+                    <h4>Rooms Inspected</h4>
+                    <div class="detail-value">${roomsList}</div>
+                </div>
+                
+                <div class="detail-section">
+                    <h4>Issues Found</h4>
+                    <ul class="issues-list">${issuesList}</ul>
+                </div>
+                
+                ${inspection.additionalNotes ? `
+                <div class="detail-section">
+                    <h4>Additional Notes</h4>
+                    <div class="detail-value">${inspection.additionalNotes}</div>
+                </div>
+                ` : ''}
+            </div>
+        </div>
+    `;
+}
+
+function getLocalInspections() {
+    try {
+        const stored = localStorage.getItem('inspectionHistory');
+        return stored ? JSON.parse(stored) : [];
+    } catch (error) {
+        console.error('Failed to load local inspections:', error);
+        return [];
+    }
+}
+
+// Navigation functions
+window.showSection = function(sectionName) {
+    // Hide all sections
+    document.querySelectorAll('.section').forEach(section => {
+        section.classList.remove('active');
+    });
+    
+    // Remove active class from all tabs
+    document.querySelectorAll('.nav-tab button').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // Show selected section
+    document.getElementById(sectionName + 'Section').classList.add('active');
+    document.getElementById(sectionName + 'Tab').classList.add('active');
+    
+    // Load history when history tab is selected
+    if (sectionName === 'history') {
+        loadInspectionHistory();
+    }
+};
+
+// Form functions
+window.clearForm = function() {
+    document.getElementById('inspectionForm').reset();
+    document.getElementById('inspectionDate').valueAsDate = new Date();
+    clearFormDraft();
+};
+
+// Settings functions
+window.showSettings = function() {
+    document.getElementById('settingsOverlay').classList.add('show');
+};
+
+window.hideSettings = function() {
+    document.getElementById('settingsOverlay').classList.remove('show');
+};
+
+window.signOut = async function() {
+    try {
+        await authManager.signOut();
+        hideSettings();
+    } catch (error) {
+        console.error('Sign out failed:', error);
+        showError('Failed to sign out. Please try again.');
+    }
+};
+
+// Utility functions
+function showSuccess(message) {
+    // Simple success notification - you could enhance this with a toast system
+    console.log('SUCCESS:', message);
+}
+
+function showError(message) {
+    // Simple error notification - you could enhance this with a toast system
+    console.error('ERROR:', message);
+    alert(message); // Temporary - replace with better UI
+}
+
+// Service worker registration for PWA functionality
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+            .then(registration => {
+                console.log('SW registered: ', registration);
+            })
+            .catch(registrationError => {
+                console.log('SW registration failed: ', registrationError);
+            });
+    });
+}
+
+// Handle app install prompt
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
+    deferredPrompt = e;
+    // You could show an install button here
+});
+
+// Listen for real-time updates from CloudSync
+document.addEventListener('inspectionAdded', (event) => {
+    const inspection = event.detail;
+    console.log('New inspection added:', inspection);
+    
+    // Refresh history if we're on the history tab
+    const historySection = document.getElementById('historySection');
+    if (historySection.classList.contains('active')) {
+        loadInspectionHistory();
+    }
+    
+    updateSyncStatus('connected', 'Data synced');
+});
+
+document.addEventListener('inspectionUpdated', (event) => {
+    console.log('Inspection updated:', event.detail);
+    
+    // Refresh history if we're on the history tab
+    const historySection = document.getElementById('historySection');
+    if (historySection.classList.contains('active')) {
+        loadInspectionHistory();
+    }
+    
+    updateSyncStatus('connected', 'Data synced');
 });
