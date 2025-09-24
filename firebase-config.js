@@ -3,13 +3,12 @@
 
 // Firebase configuration
 const firebaseConfig = {
-    // REPLACE THESE WITH YOUR ACTUAL VALUES FROM FIREBASE CONSOLE
-    apiKey: "your-api-key-here",
-    authDomain: "your-project-id.firebaseapp.com", 
-    projectId: "your-project-id",
-    storageBucket: "your-project-id.appspot.com",
-    messagingSenderId: "123456789",
-    appId: "your-app-id-here"
+  apiKey: "AIzaSyAjMZPisN2dnmowiYYVb4w0O2HOsVLF5KQ",
+  authDomain: "pinehurst-cq-pwa.firebaseapp.com",
+  projectId: "pinehurst-cq-pwa",
+  storageBucket: "pinehurst-cq-pwa.firebasestorage.app",
+  messagingSenderId: "1052902149925",
+  appId: "1:1052902149925:web:d04f776d9f307e4ebf54cc"
 };
 
 // Initialize Firebase
@@ -39,4 +38,5 @@ export {
     updateDoc,
     deleteDoc,
     getDocs
+
 };
