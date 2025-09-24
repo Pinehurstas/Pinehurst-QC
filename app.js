@@ -1,4 +1,4 @@
-// Pinehurst Quality Control PWA
+// Pinehurst Quality Control PWA - IMPROVED VERSION
 class PinehurstQC {
     constructor() {
         this.currentInspection = null;
@@ -325,7 +325,7 @@ class PinehurstQC {
                     <h3>${category.title} (${checkedItems}/${totalItems})</h3>
                     <span class="section-toggle">▼</span>
                 </div>
-                <div class="section-content" id="content-${categoryId}">
+                <div class="section-content active" id="content-${categoryId}">
                     ${this.renderChecklistItems(categoryId, category.items)}
                 </div>
             `;
@@ -333,17 +333,30 @@ class PinehurstQC {
             sectionsContainer.appendChild(sectionDiv);
         });
 
-        // Add section toggle functionality
+        // IMPROVED: Add section toggle functionality - only collapses when clicking header
         document.querySelectorAll('.section-header').forEach(header => {
             header.addEventListener('click', (e) => {
-                const categoryId = e.currentTarget.getAttribute('data-category');
-                const content = document.getElementById(`content-${categoryId}`);
-                const toggle = e.currentTarget.querySelector('.section-toggle');
-                
-                content.classList.toggle('active');
-                toggle.textContent = content.classList.contains('active') ? '▲' : '▼';
+                // Only toggle if clicking the header itself or the toggle arrow, not child elements
+                if (e.target === header || e.target.classList.contains('section-toggle') || e.target.tagName === 'H3') {
+                    const categoryId = e.currentTarget.getAttribute('data-category');
+                    const content = document.getElementById(`content-${categoryId}`);
+                    const toggle = e.currentTarget.querySelector('.section-toggle');
+                    
+                    content.classList.toggle('active');
+                    toggle.textContent = content.classList.contains('active') ? '▲' : '▼';
+                }
             });
         });
+
+        // IMPROVED: Auto-expand all sections and update toggles
+        setTimeout(() => {
+            document.querySelectorAll('.section-content').forEach(content => {
+                content.classList.add('active');
+            });
+            document.querySelectorAll('.section-toggle').forEach(toggle => {
+                toggle.textContent = '▲';
+            });
+        }, 100);
 
         this.updateProgress();
     }
@@ -387,7 +400,7 @@ class PinehurstQC {
         const progress = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
         document.getElementById('progress-fill').style.width = `${progress}%`;
 
-        // Re-render section headers with updated counts
+        // Re-render section headers with updated counts (but don't collapse sections)
         Object.keys(this.inspectionCategories).forEach(categoryId => {
             const header = document.querySelector(`[data-category="${categoryId}"]`);
             if (header) {
@@ -400,10 +413,12 @@ class PinehurstQC {
         });
     }
 
-    // Event delegation for dynamically created toggle switches
+    // IMPROVED: Event delegation for dynamically created toggle switches with event stopping
     setupDynamicEventListeners() {
         document.addEventListener('click', (e) => {
             if (e.target.classList.contains('toggle-switch')) {
+                // Prevent event bubbling to parent elements (prevents section from collapsing)
+                e.stopPropagation();
                 const categoryId = e.target.getAttribute('data-category');
                 const index = parseInt(e.target.getAttribute('data-index'));
                 this.toggleChecklistItem(categoryId, index);
@@ -431,8 +446,30 @@ class PinehurstQC {
 
         this.calculateMissCount();
         this.checkTriggers();
-        this.renderInspectionDetail();
+        
+        // IMPROVED: Update only the specific toggle instead of re-rendering entire section
+        this.updateSingleToggle(categoryId, index);
+        this.updateProgress();
         this.saveToStorage();
+    }
+
+    // NEW: Update just one toggle without re-rendering everything
+    updateSingleToggle(categoryId, index) {
+        const item = this.currentInspection.checklist[categoryId][index];
+        const toggleSwitch = document.querySelector(`[data-category="${categoryId}"][data-index="${index}"]`);
+        const toggleLabel = toggleSwitch?.nextElementSibling;
+        
+        if (toggleSwitch && toggleLabel) {
+            const isDone = item.status === 'done';
+            const isMissed = item.status === 'missed';
+            
+            // Update toggle switch appearance
+            toggleSwitch.className = `toggle-switch ${isDone ? 'done' : ''}`;
+            
+            // Update label
+            toggleLabel.className = `toggle-label ${isDone ? 'done' : (isMissed ? 'missed' : '')}`;
+            toggleLabel.textContent = isDone ? 'Done' : (isMissed ? 'Missed' : 'Pending');
+        }
     }
 
     calculateMissCount() {
