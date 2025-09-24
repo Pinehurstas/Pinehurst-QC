@@ -6,6 +6,7 @@
     <title>Pinehurst QC Inspector</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2c3e50">
+    <link rel="icon" href="icon-192x192.png" type="image/png">
     
     <style>
         * {
@@ -176,6 +177,7 @@
             cursor: pointer;
             transition: all 0.3s;
             text-align: center;
+            text-decoration: none;
         }
 
         .btn-primary {
@@ -185,6 +187,15 @@
 
         .btn-primary:hover {
             background: #2980b9;
+        }
+
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #219a52;
         }
 
         .btn-secondary {
@@ -299,6 +310,15 @@
             font-size: 3rem;
             margin-bottom: 1rem;
             opacity: 0.5;
+        }
+
+        /* Loading States */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 200px;
+            color: #7f8c8d;
         }
 
         /* Responsive */
@@ -461,7 +481,9 @@
             <!-- History Section -->
             <section id="historySection" class="section">
                 <div id="historyContainer" class="history-container">
-                    <div style="display: none;" id="historyLoading">Loading...</div>
+                    <div class="loading" id="historyLoading">
+                        Loading inspection history...
+                    </div>
                 </div>
             </section>
         </main>
