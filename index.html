@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pinehurst QC Inspector</title>
+    <meta name="description" content="Quality Control Inspection App for Pinehurst Apartment Services">
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="styles.css">
+    <meta name="theme-color" content="#2c5530">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+</head>
+<body>
+    <div id="app">
+        <!-- Loading Screen -->
+        <div id="loading-screen" class="screen">
+            <div class="loading-content">
+                <div class="logo">
+                    <h1>Pinehurst</h1>
+                    <p>Apartment Services</p>
+                </div>
+                <div class="loading-spinner"></div>
+                <p>Loading Quality Control Inspector...</p>
+            </div>
+        </div>
+
+        <!-- Main Navigation -->
+        <nav id="main-nav" class="nav-hidden">
+            <div class="nav-header">
+                <h1>Pinehurst QC</h1>
+                <button id="menu-toggle" class="menu-btn">☰</button>
+            </div>
+            <div class="nav-menu">
+                <button class="nav-btn active" data-screen="dashboard">Dashboard</button>
+                <button class="nav-btn" data-screen="new-inspection">New Inspection</button>
+                <button class="nav-btn" data-screen="inspections">Inspections</button>
+                <button class="nav-btn" data-screen="reports">Reports</button>
+                <button class="nav-btn" data-screen="settings">Settings</button>
+            </div>
+        </nav>
+
+        <!-- Dashboard Screen -->
+        <div id="dashboard" class="screen active">
+            <div class="screen-content">
+                <div class="header">
+                    <h2>Dashboard</h2>
+                    <div class="sync-status" id="sync-status">
+                        <span class="sync-indicator offline"></span>
+                        <span>Offline</span>
+                    </div>
+                </div>
+                
+                <div class="dashboard-stats">
+                    <div class="stat-card">
+                        <h3 id="total-inspections">0</h3>
+                        <p>Total Inspections</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="pending-sync">0</h3>
+                        <p>Pending Sync</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="avg-score">0%</h3>
+                        <p>Avg. Pass Rate</p>
+                    </div>
+                </div>
+
+                <div class="recent-inspections">
+                    <h3>Recent Inspections</h3>
+                    <div id="recent-list" class="inspection-list">
+                        <!-- Recent inspections will be populated here -->
+                    </div>
+                </div>
+
+                <div class="quick-actions">
+                    <button class="btn btn-primary" data-screen="new-inspection">
+                        <span class="icon">+</span>
+                        Start New Inspection
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- New Inspection Screen -->
+        <div id="new-inspection" class="screen">
+            <div class="screen-content">
+                <div class="header">
+                    <button class="back-btn" data-screen="dashboard">‹</button>
+                    <h2>New Inspection</h2>
+                </div>
+
+                <form id="inspection-form" class="inspection-form">
+                    <div class="form-group">
+                        <label for="property-select">Property</label>
+                        <select id="property-select" required>
+                            <option value="">Select Property</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="inspector-name">Inspector Name</label>
+                        <input type="text" id="inspector-name" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="inspection-date">Date & Time</label>
+                        <input type="datetime-local" id="inspection-date" required>
+                    </div>
+
+                    <button type="button" id="start-inspection" class="btn btn-primary btn-full">
+                        Start Inspection
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Inspection Detail Screen -->
+        <div id="inspection-detail" class="screen">
+            <div class="screen-content">
+                <div class="header">
+                    <button class="back-btn" data-screen="new-inspection">‹</button>
+                    <h2 id="inspection-title">Inspection</h2>
+                    <div class="progress-bar">
+                        <div id="progress-fill" class="progress-fill"></div>
+                    </div>
+                </div>
+
+                <div id="inspection-sections" class="inspection-sections">
+                    <!-- Inspection sections will be populated here -->
+                </div>
+
+                <div class="inspection-actions">
+                    <button id="add-photo" class="btn btn-secondary">
+                        <span class="icon">📷</span>
+                        Add Photo
+                    </button>
+                    <button id="add-note" class="btn btn-secondary">
+                        <span class="icon">📝</span>
+                        Add Note
+                    </button>
+                </div>
+
+                <div class="form-group">
+                    <label for="overall-rating">Overall Cleanliness Rating</label>
+                    <select id="overall-rating">
+                        <option value="">Select Rating</option>
+                        <option value="excellent">Excellent</option>
+                        <option value="good">Good</option>
+                        <option value="neutral">Neutral</option>
+                        <option value="bad">Bad</option>
+                        <option value="extremely-bad">Extremely Bad</option>
+                    </select>
+                </div>
+
+                <button id="complete-inspection" class="btn btn-primary btn-full">
+                    Complete Inspection
+                </button>
+            </div>
+        </div>
+
+        <!-- Inspections List Screen -->
+        <div id="inspections" class="screen">
+            <div class="screen-content">
+                <div class="header">
+                    <h2>Inspections</h2>
+                    <div class="header-actions">
+                        <button id="filter-btn" class="btn btn-secondary">Filter</button>
+                        <button id="export-btn" class="btn btn-secondary">Export</button>
+                    </div>
+                </div>
+
+                <div class="search-bar">
+                    <input type="text" id="inspection-search" placeholder="Search inspections...">
+                </div>
+
+                <div id="inspections-list" class="inspection-list">
+                    <!-- Inspections will be populated here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Reports Screen -->
+        <div id="reports" class="screen">
+            <div class="screen-content">
+                <div class="header">
+                    <h2>Reports & Analytics</h2>
+                </div>
+
+                <div class="report-filters">
+                    <div class="form-group">
+                        <label for="report-property">Property</label>
+                        <select id="report-property">
+                            <option value="">All Properties</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="report-date-from">From Date</label>
+                        <input type="date" id="report-date-from">
+                    </div>
+                    <div class="form-group">
+                        <label for="report-date-to">To Date</label>
+                        <input type="date" id="report-date-to">
+                    </div>
+                    <button id="generate-report" class="btn btn-primary">Generate Report</button>
+                </div>
+
+                <div id="report-content" class="report-content">
+                    <!-- Report content will be populated here -->
+                </div>
+
+                <div class="export-options">
+                    <button id="export-pdf" class="btn btn-secondary">Export PDF</button>
+                    <button id="export-excel" class="btn btn-secondary">Export Excel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Screen -->
+        <div id="settings" class="screen">
+            <div class="screen-content">
+                <div class="header">
+                    <h2>Settings</h2>
+                </div>
+
+                <div class="settings-groups">
+                    <div class="settings-group">
+                        <h3>Sync Settings</h3>
+                        <div class="setting-item">
+                            <label>Auto Sync</label>
+                            <input type="checkbox" id="auto-sync" checked>
+                        </div>
+                        <div class="setting-item">
+                            <label>Server URL</label>
+                            <input type="url" id="server-url" placeholder="https://api.example.com">
+                        </div>
+                        <button id="manual-sync" class="btn btn-secondary">Sync Now</button>
+                    </div>
+
+                    <div class="settings-group">
+                        <h3>Notifications</h3>
+                        <div class="setting-item">
+                            <label>Alert on 5+ Misses</label>
+                            <input type="checkbox" id="alert-5-misses" checked>
+                        </div>
+                        <div class="setting-item">
+                            <label>Alert on 10+ Misses</label>
+                            <input type="checkbox" id="alert-10-misses" checked>
+                        </div>
+                        <div class="setting-item">
+                            <label>Alert on Repeated Misses</label>
+                            <input type="checkbox" id="alert-repeated-misses" checked>
+                        </div>
+                    </div>
+
+                    <div class="settings-group">
+                        <h3>Data Management</h3>
+                        <button id="clear-data" class="btn btn-danger">Clear All Data</button>
+                        <button id="backup-data" class="btn btn-secondary">Backup Data</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Photo Modal -->
+    <div id="photo-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add Photo</h3>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="file" id="photo-input" accept="image/*" capture="environment">
+                <div id="photo-preview"></div>
+                <textarea id="photo-caption" placeholder="Add caption..."></textarea>
+            </div>
+            <div class="modal-actions">
+                <button id="save-photo" class="btn btn-primary">Save Photo</button>
+                <button class="btn btn-secondary modal-close">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Note Modal -->
+    <div id="note-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add Note</h3>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <textarea id="note-input" placeholder="Enter your note..."></textarea>
+            </div>
+            <div class="modal-actions">
+                <button id="save-note" class="btn btn-primary">Save Note</button>
+                <button class="btn btn-secondary modal-close">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Modal -->
+    <div id="alert-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="alert-title">Alert</h3>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="alert-message"></p>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-primary modal-close">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
