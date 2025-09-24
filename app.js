@@ -1,7 +1,10 @@
-// Pinehurst Quality Control PWA - FIXED VERSION FOR DROPDOWN STAYING OPEN
+// Copy this entire file and paste it to replace your app.js in GitHub
+
+// Pinehurst Quality Control PWA - WITH INSPECTION HISTORY VIEWING
 class PinehurstQC {
     constructor() {
         this.currentInspection = null;
+        this.viewingInspection = null; // NEW: For viewing completed inspections
         this.inspections = [];
         this.properties = [
             'Anderson Holmes', 'Aquila Court', 'Aspen', 'AVID', 'Banning Row',
@@ -242,6 +245,11 @@ class PinehurstQC {
     }
 
     showScreen(screenId) {
+        // Clear viewing mode when navigating away
+        if (screenId !== 'inspection-detail') {
+            this.viewingInspection = null;
+        }
+
         // Hide all screens
         document.querySelectorAll('.screen').forEach(screen => {
             screen.classList.remove('active');
@@ -298,25 +306,60 @@ class PinehurstQC {
             });
         });
 
+        this.viewingInspection = null; // Clear viewing mode
         this.renderInspectionDetail();
         this.showScreen('inspection-detail');
     }
 
     renderInspectionDetail() {
-        if (!this.currentInspection) return;
+        if (!this.currentInspection && !this.viewingInspection) return;
+
+        const inspection = this.currentInspection || this.viewingInspection;
+        const isViewMode = !!this.viewingInspection;
 
         document.getElementById('inspection-title').textContent = 
-            `${this.currentInspection.property} - ${new Date(this.currentInspection.date).toLocaleDateString()}`;
+            `${inspection.property} - ${new Date(inspection.date).toLocaleDateString()}${isViewMode ? ' (View Only)' : ''}`;
 
         const sectionsContainer = document.getElementById('inspection-sections');
         sectionsContainer.innerHTML = '';
+
+        // NEW: Show inspection metadata for completed inspections
+        if (isViewMode) {
+            this.renderInspectionMetadata(inspection);
+            
+            // Hide action buttons in view mode
+            document.getElementById('add-photo').style.display = 'none';
+            document.getElementById('add-note').style.display = 'none';
+            document.getElementById('complete-inspection').style.display = 'none';
+            
+            // Show back button
+            const header = document.querySelector('#inspection-detail .header');
+            if (!header.querySelector('.back-btn')) {
+                const backBtn = document.createElement('button');
+                backBtn.className = 'back-btn';
+                backBtn.innerHTML = '← Back to List';
+                backBtn.onclick = () => this.showScreen('inspections');
+                header.insertBefore(backBtn, header.firstChild);
+            }
+        } else {
+            // Show action buttons in edit mode
+            document.getElementById('add-photo').style.display = 'inline-flex';
+            document.getElementById('add-note').style.display = 'inline-flex';
+            document.getElementById('complete-inspection').style.display = 'block';
+            
+            // Remove back button if present
+            const existingBackBtn = document.querySelector('#inspection-detail .header .back-btn');
+            if (existingBackBtn) {
+                existingBackBtn.remove();
+            }
+        }
 
         Object.keys(this.inspectionCategories).forEach(categoryId => {
             const category = this.inspectionCategories[categoryId];
             const sectionDiv = document.createElement('div');
             sectionDiv.className = 'inspection-section';
             
-            const checkedItems = Object.values(this.currentInspection.checklist[categoryId])
+            const checkedItems = Object.values(inspection.checklist[categoryId])
                 .filter(item => item.status !== 'pending').length;
             const totalItems = category.items.length;
             
@@ -326,20 +369,18 @@ class PinehurstQC {
                     <span class="section-toggle">▲</span>
                 </div>
                 <div class="section-content active" id="content-${categoryId}">
-                    ${this.renderChecklistItems(categoryId, category.items)}
+                    ${this.renderChecklistItems(categoryId, category.items, isViewMode)}
                 </div>
             `;
 
             sectionsContainer.appendChild(sectionDiv);
         });
 
-        // FIXED: More robust section toggle - prevent any bubbling from child elements
+        // Add section toggle functionality (works in both modes)
         document.querySelectorAll('.section-header').forEach(header => {
             header.addEventListener('click', (e) => {
-                // Debug logging
                 console.log('Header clicked:', e.target.className, e.target.tagName);
                 
-                // Only allow toggle if clicking directly on header, h3, or toggle arrow
                 const isValidClick = (
                     e.target === header ||
                     e.target.tagName === 'H3' ||
@@ -354,7 +395,6 @@ class PinehurstQC {
                     content.classList.toggle('active');
                     toggle.textContent = content.classList.contains('active') ? '▲' : '▼';
                 } else {
-                    // Prevent any other clicks from propagating
                     e.stopPropagation();
                     e.preventDefault();
                 }
@@ -364,60 +404,192 @@ class PinehurstQC {
         this.updateProgress();
     }
 
-    renderChecklistItems(categoryId, items) {
-        return items.map((item, index) => {
-            const checklistItem = this.currentInspection.checklist[categoryId][index];
-            const isDone = checklistItem.status === 'done';
-            const isMissed = checklistItem.status === 'missed';
-            
-            return `
-                <div class="checklist-item" onclick="event.stopPropagation();">
-                    <div class="item-text">${item}</div>
-                    <div class="item-controls">
-                        <div class="toggle-switch ${isDone ? 'done' : ''}" 
-                             data-category="${categoryId}" 
-                             data-index="${index}"
-                             onclick="event.stopPropagation();">
-                        </div>
-                        <div class="toggle-label ${isDone ? 'done' : (isMissed ? 'missed' : '')}" onclick="event.stopPropagation();">
-                            ${isDone ? 'Done' : (isMissed ? 'Missed' : 'Pending')}
-                        </div>
+    // NEW: Render inspection metadata for completed inspections
+    renderInspectionMetadata(inspection) {
+        const sectionsContainer = document.getElementById('inspection-sections');
+        
+        // Add metadata section at the top
+        const metadataDiv = document.createElement('div');
+        metadataDiv.className = 'inspection-metadata';
+        metadataDiv.innerHTML = `
+            <div class="metadata-card">
+                <h3>Inspection Summary</h3>
+                <div class="metadata-grid">
+                    <div class="metadata-item">
+                        <div class="metadata-label">Property</div>
+                        <div class="metadata-value">${inspection.property}</div>
+                    </div>
+                    <div class="metadata-item">
+                        <div class="metadata-label">Inspector</div>
+                        <div class="metadata-value">${inspection.inspector}</div>
+                    </div>
+                    <div class="metadata-item">
+                        <div class="metadata-label">Date</div>
+                        <div class="metadata-value">${new Date(inspection.date).toLocaleString()}</div>
+                    </div>
+                    <div class="metadata-item">
+                        <div class="metadata-label">Completed</div>
+                        <div class="metadata-value">${new Date(inspection.completedDate).toLocaleString()}</div>
+                    </div>
+                    <div class="metadata-item">
+                        <div class="metadata-label">Total Items</div>
+                        <div class="metadata-value">${this.getTotalItemCount(inspection)}</div>
+                    </div>
+                    <div class="metadata-item">
+                        <div class="metadata-label">Items Passed</div>
+                        <div class="metadata-value">${this.getDoneItemCount(inspection)}</div>
+                    </div>
+                    <div class="metadata-item">
+                        <div class="metadata-label">Items Missed</div>
+                        <div class="metadata-value">${inspection.missCount}</div>
+                    </div>
+                    <div class="metadata-item">
+                        <div class="metadata-label">Pass Rate</div>
+                        <div class="metadata-value">${this.calculatePassRate(inspection)}%</div>
+                    </div>
+                    <div class="metadata-item">
+                        <div class="metadata-label">Overall Rating</div>
+                        <div class="metadata-value">${this.formatRating(inspection.overallRating)}</div>
                     </div>
                 </div>
-            `;
+                ${inspection.notes.length > 0 ? `
+                    <div class="inspection-notes">
+                        <h4>Notes:</h4>
+                        ${inspection.notes.map(note => `
+                            <div class="note-item" style="margin-bottom: 0.5rem; padding: 0.5rem; background: var(--background-color); border-radius: 4px;">
+                                <span style="font-size: 0.875rem; color: var(--text-secondary);">${new Date(note.timestamp).toLocaleString()}:</span>
+                                <div style="margin-top: 0.25rem;">${note.text}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
+                ${inspection.photos.length > 0 ? `
+                    <div class="inspection-photos">
+                        <h4>Photos (${inspection.photos.length}):</h4>
+                        <div class="photo-grid">
+                            ${inspection.photos.map(photo => `
+                                <div class="photo-item">
+                                    <img src="${photo.data}" alt="Inspection photo" style="cursor: pointer;" onclick="this.style.position = this.style.position === 'fixed' ? 'static' : 'fixed'; this.style.top = this.style.top === '50%' ? 'auto' : '50%'; this.style.left = this.style.left === '50%' ? 'auto' : '50%'; this.style.transform = this.style.transform === 'translate(-50%, -50%) scale(2)' ? 'none' : 'translate(-50%, -50%) scale(2)'; this.style.zIndex = this.style.zIndex === '9999' ? 'auto' : '9999';">
+                                    ${photo.caption ? `<p style="margin-top: 0.5rem; font-size: 0.875rem; color: var(--text-secondary);">${photo.caption}</p>` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+        
+        sectionsContainer.appendChild(metadataDiv);
+    }
+
+    renderChecklistItems(categoryId, items, isViewMode = false) {
+        const inspection = this.currentInspection || this.viewingInspection;
+        
+        return items.map((item, index) => {
+            const checklistItem = inspection.checklist[categoryId][index];
+            const isDone = checklistItem.status === 'done';
+            const isMissed = checklistItem.status === 'missed';
+            const isPending = checklistItem.status === 'pending';
+            
+            // Different rendering for view mode vs edit mode
+            if (isViewMode) {
+                let statusIcon = '⏳'; // pending
+                let statusClass = 'status-pending';
+                let statusText = 'Pending';
+                
+                if (isDone) {
+                    statusIcon = '✅';
+                    statusClass = 'status-done';
+                    statusText = 'Done';
+                } else if (isMissed) {
+                    statusIcon = '❌';
+                    statusClass = 'status-missed';
+                    statusText = 'Missed';
+                }
+                
+                return `
+                    <div class="checklist-item ${statusClass}">
+                        <div class="item-text">${item}</div>
+                        <div class="item-status ${isDone ? 'done' : (isMissed ? 'missed' : 'pending')}">
+                            ${statusIcon} ${statusText}
+                        </div>
+                    </div>
+                `;
+            } else {
+                // Edit mode (current behavior)
+                return `
+                    <div class="checklist-item" onclick="event.stopPropagation();">
+                        <div class="item-text">${item}</div>
+                        <div class="item-controls">
+                            <div class="toggle-switch ${isDone ? 'done' : ''}" 
+                                 data-category="${categoryId}" 
+                                 data-index="${index}"
+                                 onclick="event.stopPropagation();">
+                            </div>
+                            <div class="toggle-label ${isDone ? 'done' : (isMissed ? 'missed' : '')}" onclick="event.stopPropagation();">
+                                ${isDone ? 'Done' : (isMissed ? 'Missed' : 'Pending')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
         }).join('');
     }
 
+    // NEW: Helper functions for metadata
+    getTotalItemCount(inspection) {
+        let total = 0;
+        Object.keys(inspection.checklist).forEach(categoryId => {
+            total += Object.keys(inspection.checklist[categoryId]).length;
+        });
+        return total;
+    }
+
+    getDoneItemCount(inspection) {
+        let done = 0;
+        Object.keys(inspection.checklist).forEach(categoryId => {
+            Object.values(inspection.checklist[categoryId]).forEach(item => {
+                if (item.status === 'done') done++;
+            });
+        });
+        return done;
+    }
+
     updateProgress() {
-        if (!this.currentInspection) return;
+        const inspection = this.currentInspection || this.viewingInspection;
+        if (!inspection) return;
 
         let totalItems = 0;
         let completedItems = 0;
 
-        Object.keys(this.currentInspection.checklist).forEach(categoryId => {
-            Object.values(this.currentInspection.checklist[categoryId]).forEach(item => {
+        Object.keys(inspection.checklist).forEach(categoryId => {
+            Object.values(inspection.checklist[categoryId]).forEach(item => {
                 totalItems++;
                 if (item.status !== 'pending') completedItems++;
             });
         });
 
         const progress = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
-        document.getElementById('progress-fill').style.width = `${progress}%`;
+        const progressFill = document.getElementById('progress-fill');
+        if (progressFill) {
+            progressFill.style.width = `${progress}%`;
+        }
 
-        // Re-render section headers with updated counts (but don't collapse sections)
+        // Re-render section headers with updated counts
         Object.keys(this.inspectionCategories).forEach(categoryId => {
             const header = document.querySelector(`[data-category="${categoryId}"]`);
             if (header) {
-                const checkedItems = Object.values(this.currentInspection.checklist[categoryId])
+                const checkedItems = Object.values(inspection.checklist[categoryId])
                     .filter(item => item.status !== 'pending').length;
                 const totalItems = this.inspectionCategories[categoryId].items.length;
                 const h3 = header.querySelector('h3');
-                h3.textContent = `${this.inspectionCategories[categoryId].title} (${checkedItems}/${totalItems})`;
+                if (h3) {
+                    h3.textContent = `${this.inspectionCategories[categoryId].title} (${checkedItems}/${totalItems})`;
+                }
             }
         });
     }
 
-    // FIXED: More aggressive event handling to prevent bubbling
     setupDynamicEventListeners() {
         // Use capture phase to catch events before they bubble
         document.addEventListener('click', (e) => {
@@ -429,9 +601,12 @@ class PinehurstQC {
                 e.stopImmediatePropagation();
                 e.preventDefault();
                 
-                const categoryId = e.target.getAttribute('data-category');
-                const index = parseInt(e.target.getAttribute('data-index'));
-                this.toggleChecklistItem(categoryId, index);
+                // Only allow toggling in edit mode (not view mode)
+                if (!this.viewingInspection) {
+                    const categoryId = e.target.getAttribute('data-category');
+                    const index = parseInt(e.target.getAttribute('data-index'));
+                    this.toggleChecklistItem(categoryId, index);
+                }
                 return false;
             }
             
@@ -610,6 +785,15 @@ class PinehurstQC {
         this.showScreen('dashboard');
     }
 
+    // NEW: Function to view completed inspection details
+    viewInspectionDetail(inspection) {
+        console.log('Viewing inspection:', inspection.id);
+        this.viewingInspection = inspection;
+        this.currentInspection = null; // Clear current inspection
+        this.renderInspectionDetail();
+        this.showScreen('inspection-detail');
+    }
+
     renderInspectionsList() {
         const listContainer = document.getElementById('inspections-list');
         listContainer.innerHTML = '';
@@ -619,9 +803,9 @@ class PinehurstQC {
             return;
         }
 
-        this.inspections.reverse().forEach(inspection => {
+        this.inspections.slice().reverse().forEach(inspection => {
             const card = document.createElement('div');
-            card.className = 'inspection-card';
+            card.className = 'inspection-card clickable'; // Added clickable class
             
             const statusClass = inspection.status === 'completed' ? 'status-completed' : 'status-pending';
             const ratingClass = this.getRatingClass(inspection.overallRating);
@@ -640,8 +824,12 @@ class PinehurstQC {
                     <span>Misses: ${inspection.missCount}</span>
                     <span>Rating: <span class="score-indicator ${ratingClass}">${this.formatRating(inspection.overallRating)}</span></span>
                 </div>
+                <div class="inspection-actions">
+                    <small>Click to view details</small>
+                </div>
             `;
 
+            // NEW: Add click handler to view inspection details
             card.addEventListener('click', () => {
                 this.viewInspectionDetail(inspection);
             });
@@ -703,7 +891,7 @@ class PinehurstQC {
             recentList.innerHTML = '<p class="text-center">No recent inspections.</p>';
         } else {
             recentList.innerHTML = recentInspections.map(inspection => `
-                <div class="inspection-card">
+                <div class="inspection-card clickable" onclick="app.viewInspectionDetail(${JSON.stringify(inspection).replace(/"/g, '&quot;')})">
                     <div class="inspection-header">
                         <div>
                             <div class="inspection-title">${inspection.property}</div>
@@ -713,6 +901,9 @@ class PinehurstQC {
                     <div class="inspection-summary">
                         <span>Pass Rate: ${this.calculatePassRate(inspection)}%</span>
                         <span>Misses: ${inspection.missCount}</span>
+                    </div>
+                    <div class="inspection-actions">
+                        <small>Click to view details</small>
                     </div>
                 </div>
             `).join('');
@@ -843,7 +1034,7 @@ class PinehurstQC {
         // Use same rendering logic as renderInspectionsList but with filtered data
         inspections.reverse().forEach(inspection => {
             const card = document.createElement('div');
-            card.className = 'inspection-card';
+            card.className = 'inspection-card clickable';
             
             const statusClass = inspection.status === 'completed' ? 'status-completed' : 'status-pending';
             const ratingClass = this.getRatingClass(inspection.overallRating);
@@ -862,7 +1053,14 @@ class PinehurstQC {
                     <span>Misses: ${inspection.missCount}</span>
                     <span>Rating: <span class="score-indicator ${ratingClass}">${this.formatRating(inspection.overallRating)}</span></span>
                 </div>
+                <div class="inspection-actions">
+                    <small>Click to view details</small>
+                </div>
             `;
+
+            card.addEventListener('click', () => {
+                this.viewInspectionDetail(inspection);
+            });
 
             listContainer.appendChild(card);
         });
@@ -922,6 +1120,7 @@ class PinehurstQC {
         if (confirm('Are you sure you want to clear all inspection data? This cannot be undone.')) {
             this.inspections = [];
             this.currentInspection = null;
+            this.viewingInspection = null;
             this.saveToStorage();
             this.updateDashboard();
             this.renderInspectionsList();
@@ -969,9 +1168,9 @@ class PinehurstQC {
             }
 
             // Save inspector name
-            const inspectorName = document.getElementById('inspector-name').value;
-            if (inspectorName) {
-                localStorage.setItem('pinehurst_inspector_name', inspectorName);
+            const inspectorName = document.getElementById('inspector-name');
+            if (inspectorName && inspectorName.value) {
+                localStorage.setItem('pinehurst_inspector_name', inspectorName.value);
             }
         } catch (error) {
             console.error('Error saving to storage:', error);
@@ -981,7 +1180,8 @@ class PinehurstQC {
 
 // Initialize the app when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    const app = new PinehurstQC();
+    // Make app globally accessible for dashboard clicks
+    window.app = new PinehurstQC();
     
     // Set up dynamic event listeners
     app.setupDynamicEventListeners();
