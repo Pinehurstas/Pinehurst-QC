@@ -155,7 +155,7 @@ function App() {
     <div style={{ fontFamily: 'system-ui, sans-serif', background: '#eef4f1', minHeight: '100vh' }}>
       <header style={{ background: brand.bg, color: 'white', padding: '12px 16px' }}>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <img src="/logo.png" alt="PAS" width={36} height={36} />
+          <img src="logo.png" alt="PAS" width={36} height={36} />
           <h1 style={{ margin: 0, fontSize: 18 }}>Pinehurst Apartment Services QC</h1>
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
             <button onClick={() => setView('new')} style={{ background: view==='new'? brand.accent : '#134e4a', color: 'white', borderRadius: 6, padding: '6px 10px' }}>New Inspection</button>
