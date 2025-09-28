@@ -47,7 +47,7 @@ export const categories: ChecklistCategory[] = [
       { id: 'toilets_urinals', text: 'Toilets and urinals spotless' },
       { id: 'floors_dry', text: 'Floors dry and clean' },
       { id: 'soap_full', text: 'Soap dispensers full and clean' },
-      { id: 'trash_lin ers', text: 'Trash bins emptied and liners replaced' },
+      { id: 'trash_liners', text: 'Trash bins emptied and liners replaced' },
     ],
   },
   {
