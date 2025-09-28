@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react'
 import { categories, cleanlinessRatings, type ChecklistCategory, type CleanlinessRating } from './data/categories'
+import { properties as seeded } from './data/properties'
 import { db, storage } from './lib/firebase'
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
 import { get, set } from 'idb-keyval'
@@ -31,13 +32,7 @@ type InspectionRecord = {
   createdAt?: any
 }
 
-const seedProperties: Property[] = [
-  { id: 'anderson_holmes', name: 'Anderson Holmes' },
-  { id: 'aquila_court', name: 'Aquila Court' },
-  { id: 'aspen', name: 'Aspen' },
-  { id: 'avid', name: 'AVID' },
-  { id: 'banning_row', name: 'Banning Row' },
-]
+const seedProperties: Property[] = seeded
 
 function App() {
   const [properties, setProperties] = useState<Property[]>(seedProperties)
