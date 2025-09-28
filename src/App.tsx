@@ -1,8 +1,8 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { categories, cleanlinessRatings, type ChecklistCategory, type CleanlinessRating } from './data/categories'
 import { properties as seeded } from './data/properties'
 import { db, storage } from './lib/firebase'
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
+import { addDoc, collection, serverTimestamp, getDocs, query, orderBy, where } from 'firebase/firestore'
 import { get, set } from 'idb-keyval'
 import { ref, uploadBytes } from 'firebase/storage'
 
@@ -34,7 +34,10 @@ type InspectionRecord = {
 
 const seedProperties: Property[] = seeded
 
+type HistoryRow = InspectionRecord & { id?: string }
+
 function App() {
+  const [view, setView] = useState<'new' | 'history'>('new')
   const [properties, setProperties] = useState<Property[]>(seedProperties)
   const [propertyId, setPropertyId] = useState('')
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
@@ -45,6 +48,9 @@ function App() {
   const [photos, setPhotos] = useState<PhotoAttachment[]>([])
   const [saving, setSaving] = useState(false)
   const [summary, setSummary] = useState<InspectionRecord | null>(null)
+  const [history, setHistory] = useState<HistoryRow[]>([])
+  const [historyProperty, setHistoryProperty] = useState<string>('')
+  const [queueCount, setQueueCount] = useState<number>(0)
 
   const items = useMemo(() => {
     const list: { id: string; label: string }[] = []
@@ -151,10 +157,15 @@ function App() {
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           <img src="/logo.png" alt="PAS" width={36} height={36} />
           <h1 style={{ margin: 0, fontSize: 18 }}>Pinehurst Apartment Services QC</h1>
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+            <button onClick={() => setView('new')} style={{ background: view==='new'? brand.accent : '#134e4a', color: 'white', borderRadius: 6, padding: '6px 10px' }}>New Inspection</button>
+            <button onClick={() => setView('history')} style={{ background: view==='history'? brand.accent : '#134e4a', color: 'white', borderRadius: 6, padding: '6px 10px' }}>History</button>
+          </div>
         </div>
       </header>
 
       <main style={{ maxWidth: 900, margin: '0 auto', padding: 16 }}>
+        {view === 'new' && (
         <section style={{ background: brand.card, borderRadius: 8, padding: 16, boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
           <h2>New Inspection</h2>
           <form onSubmit={handleSubmit}>
@@ -231,13 +242,53 @@ function App() {
             </div>
           </form>
         </section>
+        )}
 
-        {summary && (
+        {view === 'new' && summary && (
           <section style={{ background: brand.card, borderRadius: 8, padding: 16, marginTop: 16 }}>
             <h2>Summary</h2>
             <p><strong>Property:</strong> {summary.propertyName}</p>
             <p><strong>Date:</strong> {summary.date} &nbsp; <strong>Inspector:</strong> {summary.inspector}</p>
             <p><strong>Misses:</strong> {summary.misses} &nbsp; <strong>Action:</strong> {summary.action}</p>
+          </section>
+        )}
+
+        {view === 'history' && (
+          <section style={{ background: brand.card, borderRadius: 8, padding: 16, boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+            <h2>Inspection History</h2>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
+              <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                Property
+                <select value={historyProperty} onChange={(e) => setHistoryProperty(e.target.value)}>
+                  <option value="">All properties</option>
+                  {properties.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </label>
+              <div style={{ marginLeft: 'auto' }}>
+                Offline queued: {queueCount} &nbsp;
+                <button onClick={syncNow}>Sync Now</button>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gap: 8 }}>
+              {history.length === 0 && <div>No inspections yet.</div>}
+              {history.map((row) => (
+                <div key={row.id} style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center' }}>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>{row.propertyName}</div>
+                    <div style={{ color: '#475569' }}>{row.date} • Inspector: {row.inspector}</div>
+                    <div>Misses: {row.misses} • Action: {row.action}</div>
+                  </div>
+                  <div>
+                    <span style={{ padding: '4px 8px', borderRadius: 6, background: row.misses >= 5 ? '#fee2e2' : '#dcfce7', color: row.misses >= 5 ? '#b91c1c' : '#166534' }}>
+                      {row.misses >= 5 ? 'Failed' : 'Passed'}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </section>
         )}
       </main>
