@@ -7,8 +7,8 @@ const firebaseConfig = {
   apiKey: "AIzaSyBg-ofXrXgn64c_0P5hecyjbRNoSebBPQE",
   authDomain: "pinehurst-qc.firebaseapp.com",
   projectId: "pinehurst-qc",
-  // For Firebase Web SDK, storageBucket should be the bucket name (usually <project-id>.appspot.com)
-  storageBucket: "pinehurst-qc.appspot.com",
+  // Use the exact bucket name shown in the Firebase console
+  storageBucket: "pinehurst-qc.firebasestorage.app",
   messagingSenderId: "977197838443",
   appId: "1:977197838443:web:93b1cd8d4ddb5a22fcc12e"
 }
