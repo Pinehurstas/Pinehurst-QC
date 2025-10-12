@@ -51,6 +51,11 @@ function App() {
   const [history, setHistory] = useState<HistoryRow[]>([])
   const [historyProperty, setHistoryProperty] = useState<string>('')
   const [queueCount, setQueueCount] = useState<number>(0)
+  const itemText = useMemo(() => {
+    const map: Record<string, string> = {}
+    categories.forEach((c) => c.items.forEach((it) => { map[it.id] = it.text }))
+    return map
+  }, [])
 
   const items = useMemo(() => {
     const list: { id: string; label: string }[] = []
@@ -86,6 +91,10 @@ function App() {
     const queue = ((await get('syncQueue')) as any[]) || []
     queue.push({ key, record })
     await set('syncQueue', queue)
+    // Also save to local history so it appears immediately in History view
+    const local = ((await get('localHistory')) as any[]) || []
+    local.unshift({ id: key, ...record, __unsynced: true })
+    await set('localHistory', local)
   }
 
   async function syncNow() {
@@ -102,14 +111,20 @@ function App() {
           ...rec,
           createdAt: serverTimestamp(),
         })
-        // upload photos
+        // upload photos (only those currently in memory for this session)
         for (const p of photos.filter((ph) => rec.results[ph.itemId])) {
           const storageRef = ref(storage, `photos/${docRef.id}/${p.itemId}-${Date.now()}`)
           await uploadBytes(storageRef, p.file)
         }
       }
       await set('syncQueue', [])
+      // Mark local history as synced
+      const local = ((await get('localHistory')) as any[]) || []
+      const updated = local.map((r: any) => ({ ...r, __unsynced: false }))
+      await set('localHistory', updated)
       alert('Synced!')
+      await loadHistory(historyProperty)
+      await loadQueueCount()
     } catch (e) {
       console.error(e)
       alert('Sync failed; records remain queued')
@@ -272,6 +287,10 @@ function App() {
               </div>
             </div>
 
+            {/* Trends summary */}
+            <Trends history={history} itemText={itemText} />
+
+            <h3 style={{ marginTop: 16 }}>All inspections</h3>
             <div style={{ display: 'grid', gap: 8 }}>
               {history.length === 0 && <div>No inspections yet.</div>}
               {history.map((row) => (
@@ -280,6 +299,10 @@ function App() {
                     <div style={{ fontWeight: 600 }}>{row.propertyName}</div>
                     <div style={{ color: '#475569' }}>{row.date} • Inspector: {row.inspector}</div>
                     <div>Misses: {row.misses} • Action: {row.action}</div>
+                    {/* unsynced badge */}
+                    {(row as any).__unsynced && (
+                      <span style={{ padding: '2px 6px', borderRadius: 6, background: '#fef9c3', color: '#854d0e' }}>Unsynced (local)</span>
+                    )}
                   </div>
                   <div>
                     <span style={{ padding: '4px 8px', borderRadius: 6, background: row.misses >= 5 ? '#fee2e2' : '#dcfce7', color: row.misses >= 5 ? '#b91c1c' : '#166534' }}>
@@ -297,3 +320,48 @@ function App() {
 }
 
 export default App
+
+// -------- Trends component --------
+function Trends({ history, itemText }: { history: HistoryRow[]; itemText: Record<string,string> }) {
+  const total = history.length
+  const totalMisses = history.reduce((sum, h) => sum + (h.misses || 0), 0)
+  const avgMisses = total ? (totalMisses / total) : 0
+  const passCount = history.filter((h) => (h.misses || 0) <= 4).length
+  const passRate = total ? Math.round((passCount / total) * 100) : 0
+
+  // Count misses by itemId
+  const missCounts: Record<string, number> = {}
+  history.forEach((h) => {
+    Object.entries(h.results || {}).forEach(([itemId, status]) => {
+      if (status === 'Missed') missCounts[itemId] = (missCounts[itemId] || 0) + 1
+    })
+  })
+  const topMisses = Object.entries(missCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+
+  return (
+    <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 12 }}>
+      <h3 style={{ marginTop: 0 }}>Trends</h3>
+      {total === 0 ? (
+        <div>No data yet. Create an inspection and Sync.</div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+          <div><strong>Total inspections:</strong> {total}</div>
+          <div><strong>Avg misses:</strong> {avgMisses.toFixed(1)}</div>
+          <div><strong>Pass rate:</strong> {passRate}%</div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <strong>Most commonly missed items</strong>
+            {topMisses.length === 0 ? <div>None</div> : (
+              <ul>
+                {topMisses.map(([id, count]) => (
+                  <li key={id}>{itemText[id] || id}: {count}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
