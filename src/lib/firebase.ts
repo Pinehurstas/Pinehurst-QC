@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app'
 import { getFirestore } from 'firebase/firestore'
 import { getStorage } from 'firebase/storage'
+import { getAuth, onAuthStateChanged, signInAnonymously } from 'firebase/auth'
 
 const firebaseConfig = {
   apiKey: "AIzaSyBg-ofXrXgn64c_0P5hecyjbRNoSebBPQE",
@@ -15,3 +16,11 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig)
 export const db = getFirestore(app)
 export const storage = getStorage(app)
+export const auth = getAuth(app)
+
+// Ensure we always have a user (anonymous) so writes pass auth-based rules
+onAuthStateChanged(auth, (user) => {
+  if (!user) {
+    signInAnonymously(auth).catch(console.error)
+  }
+})
