@@ -95,6 +95,8 @@ function App() {
     const local = ((await get('localHistory')) as any[]) || []
     local.unshift({ id: key, ...record, __unsynced: true })
     await set('localHistory', local)
+    // If user is on History, reflect immediately
+    setHistory((prev) => [{ id: key, ...record, __unsynced: true } as any, ...prev])
   }
 
   async function syncNow() {
@@ -161,6 +163,11 @@ function App() {
       // reset form minimally
       setResults({})
       setPhotos([])
+      // If user is in History view, reload
+      if (view === 'history') {
+        await loadHistory(historyProperty)
+        await loadQueueCount()
+      }
     } finally {
       setSaving(false)
     }
