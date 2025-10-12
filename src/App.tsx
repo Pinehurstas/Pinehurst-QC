@@ -310,7 +310,7 @@ function App() {
                 <div><strong>Online:</strong> {typeof navigator !== 'undefined' && navigator.onLine ? 'Yes' : 'No'}</div>
                 <div><strong>Last error:</strong> {lastError || 'None'}</div>
                 <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                  <button onClick={testCloudWrite}>Test cloud write</button>
+                  <button onClick={() => testCloudWrite()}>Test cloud write</button>
                   <button onClick={() => loadHistory(historyProperty)}>Force cloud reload</button>
                 </div>
               </div>
