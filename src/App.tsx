@@ -51,6 +51,8 @@ function App() {
   const [history, setHistory] = useState<HistoryRow[]>([])
   const [historyProperty, setHistoryProperty] = useState<string>('')
   const [queueCount, setQueueCount] = useState<number>(0)
+  const [lastError, setLastError] = useState<string>('')
+  const [debugOpen, setDebugOpen] = useState<boolean>(false)
   const itemText = useMemo(() => {
     const map: Record<string, string> = {}
     categories.forEach((c) => c.items.forEach((it) => { map[it.id] = it.text }))
@@ -127,8 +129,10 @@ function App() {
       if (!silent) alert('Synced!')
       await loadHistory(historyProperty)
       await loadQueueCount()
-    } catch (e) {
+    } catch (e: any) {
       console.error(e)
+      const msg = e?.message || String(e)
+      setLastError(`syncNow: ${msg}`)
       if (!silent) alert('Sync failed; records remain queued')
     } finally {
       if (!silent) setSaving(false)
@@ -288,11 +292,23 @@ function App() {
                   ))}
                 </select>
               </label>
-              <div style={{ marginLeft: 'auto' }}>
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
                 Offline queued: {queueCount} &nbsp;
                 <button onClick={() => syncNow()}>Sync Now</button>
+                <button onClick={() => setDebugOpen((v) => !v)}>Debug</button>
               </div>
             </div>
+
+            {debugOpen && (
+              <div style={{ background: '#fffbea', border: '1px dashed #f59e0b', borderRadius: 8, padding: 12, marginBottom: 12 }}>
+                <div><strong>Online:</strong> {typeof navigator !== 'undefined' && navigator.onLine ? 'Yes' : 'No'}</div>
+                <div><strong>Last error:</strong> {lastError || 'None'}</div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  <button onClick={testCloudWrite}>Test cloud write</button>
+                  <button onClick={() => loadHistory(historyProperty)}>Force cloud reload</button>
+                </div>
+              </div>
+            )}
 
             {/* Trends summary */}
             <Trends history={history} itemText={itemText} />
