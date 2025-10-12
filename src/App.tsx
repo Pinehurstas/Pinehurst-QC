@@ -99,13 +99,13 @@ function App() {
     setHistory((prev) => [{ id: key, ...record, __unsynced: true } as any, ...prev])
   }
 
-  async function syncNow() {
+  async function syncNow(silent = false) {
     const queue = ((await get('syncQueue')) as any[]) || []
     if (queue.length === 0) {
-      alert('Nothing to sync')
+      if (!silent) alert('Nothing to sync')
       return
     }
-    setSaving(true)
+    if (!silent) setSaving(true)
     try {
       for (const entry of queue) {
         const rec = entry.record as InspectionRecord
@@ -124,14 +124,14 @@ function App() {
       const local = ((await get('localHistory')) as any[]) || []
       const updated = local.map((r: any) => ({ ...r, __unsynced: false }))
       await set('localHistory', updated)
-      alert('Synced!')
+      if (!silent) alert('Synced!')
       await loadHistory(historyProperty)
       await loadQueueCount()
     } catch (e) {
       console.error(e)
-      alert('Sync failed; records remain queued')
+      if (!silent) alert('Sync failed; records remain queued')
     } finally {
-      setSaving(false)
+      if (!silent) setSaving(false)
     }
   }
 
@@ -258,7 +258,7 @@ function App() {
 
             <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
               <button type="submit" disabled={saving} style={{ background: brand.accent, color: 'white', padding: '8px 12px', borderRadius: 6 }}>Save Offline</button>
-              <button type="button" onClick={syncNow} disabled={saving}>
+              <button type="button" onClick={() => syncNow()} disabled={saving}>
                 Sync Now
               </button>
             </div>
@@ -290,7 +290,7 @@ function App() {
               </label>
               <div style={{ marginLeft: 'auto' }}>
                 Offline queued: {queueCount} &nbsp;
-                <button onClick={syncNow}>Sync Now</button>
+                <button onClick={() => syncNow()}>Sync Now</button>
               </div>
             </div>
 
