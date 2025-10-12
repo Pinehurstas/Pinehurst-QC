@@ -115,10 +115,16 @@ function App() {
           ...rec,
           createdAt: serverTimestamp(),
         })
-        // upload photos (only those currently in memory for this session)
+        // upload photos (best-effort; do not fail entire sync)
         for (const p of photos.filter((ph) => rec.results[ph.itemId])) {
-          const storageRef = ref(storage, `photos/${docRef.id}/${p.itemId}-${Date.now()}`)
-          await uploadBytes(storageRef, p.file)
+          try {
+            const storageRef = ref(storage, `photos/${docRef.id}/${p.itemId}-${Date.now()}`)
+            await uploadBytes(storageRef, p.file)
+          } catch (photoErr: any) {
+            console.warn('Photo upload failed:', photoErr?.message || photoErr)
+            setLastError(`photo: ${photoErr?.message || photoErr}`)
+            // continue
+          }
         }
       }
       await set('syncQueue', [])
@@ -133,7 +139,7 @@ function App() {
       console.error(e)
       const msg = e?.message || String(e)
       setLastError(`syncNow: ${msg}`)
-      if (!silent) alert('Sync failed; records remain queued')
+      if (!silent) alert('Sync failed; records remain queued. Tap Debug for details, then try again.')
     } finally {
       if (!silent) setSaving(false)
     }
