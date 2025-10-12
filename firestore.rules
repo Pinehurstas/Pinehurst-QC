@@ -1,0 +1,23 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Inspections collection
+    match /inspections/{doc} {
+      // Allow read by anyone for now (you can restrict to auth later)
+      allow read: if true;
+      // Allow write if authenticated OR temporarily allow during dev
+      allow create, update, delete: if request.auth != null || request.time < timestamp.date(2025, 12, 31);
+    }
+
+    // Diagnostics collection (for testing connectivity)
+    match /diagnostics/{doc} {
+      allow read: if true;
+      allow create: if request.auth != null || request.time < timestamp.date(2025, 12, 31);
+    }
+
+    // Fallback for any other docs (read-only)
+    match /{document=**} {
+      allow read: if true;
+    }
+  }
+}
